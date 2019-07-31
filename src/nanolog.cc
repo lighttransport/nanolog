@@ -56,7 +56,7 @@ void set_color(bool enabled) { g_color = enabled; }
 
 void log(int level, const char *file, const char *funcname, int line,
          const char *fmt_str, fmt::format_args args) {
-  std::lock_guard<std::mutex> log(g_mutex);
+  std::lock_guard<std::mutex> lock(g_mutex);
 
   std::string log_fmt;
 
