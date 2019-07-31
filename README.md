@@ -29,6 +29,22 @@ nanolog uses fmtlib for formatted logging.
 Just copy `nanolog/include`, `nanolog/src` and `deps/fmt` to your project folder.
 Include `nanolog/src/nanolog.cc`, `deps/fmt/src/format.cc` and `deps/fmt/src/posix.cc` to your project.
 
+### Build test on Visual Studio 2017
+
+Install meson.
+(Assume meson will be installed to `C:\Program Files\Meson\meson.exe`)
+
+Edit path in `vcsetup.bat` if required.
+
+Open `Developer Command Prompt for Visual Studio 2017` from Windows menu.
+
+```
+> cd $nanolog
+> vcsetup.bat
+```
+
+VS solution file will be generated at `build` directory.
+
 ## Note on logging API
 
 New line(`\n`) character is prepended to each log message.
