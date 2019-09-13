@@ -8,9 +8,11 @@ steps:
 - script: |
     sudo apt-get install python3 python3-pip python3-setuptools \
                        python3-wheel ninja-build
-    pip3 install --user meson
-    export PATH="${PATH}:$(python3 -c 'import site; print(site.USER_BASE);')/bin"
+    sudo apt-get install meson
+  displayName: 'setup'
+- script: |
     meson build
     cd build
     ninja
   displayName: 'meson'
+
