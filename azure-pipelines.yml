@@ -11,7 +11,7 @@ steps:
   displayName: 'setup'
 - script: |
     pwd
-    find ~/ -name "meson" -print
+    PATH=$PATH:~/.local/bin
     meson builddir
     cd builddir
     ninja
