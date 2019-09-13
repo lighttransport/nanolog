@@ -6,11 +6,12 @@ pool:
 
 steps:
 - script: |
-    sudo apt-get install -y python3 python3-pip python3-setuptools python3-wheel ninja-build meson
+    sudo apt-get install -y python3 python3-pip python3-setuptools python3-wheel ninja-build
+    pip install --user meson
   displayName: 'setup'
 - script: |
-    which meson
-    meson --version
+    pwd
+    find ~/ -name "meson" -print
     meson builddir
     cd builddir
     ninja
