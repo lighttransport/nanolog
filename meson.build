@@ -4,4 +4,4 @@ thread_dep = dependency('threads')
 
 incdir = include_directories(['deps/fmt/include', 'include'])
 
-executable('run_test', ['deps/fmt/src/format.cc', 'deps/fmt/src/posix.cc', 'src/nanolog.cc', 'test/main.cc'], include_directories : incdir, dependencies : thread_dep)
+executable('run_test', ['deps/fmt/src/format.cc', 'deps/fmt/src/os.cc', 'src/nanolog.cc', 'test/main.cc'], include_directories : incdir, dependencies : thread_dep)
