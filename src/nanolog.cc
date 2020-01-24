@@ -58,6 +58,10 @@ void log(int level, const char *file, const char *funcname, int line,
          const char *fmt_str, fmt::format_args args) {
   std::lock_guard<std::mutex> lock(g_mutex);
 
+  if (level < g_level) {
+    return;
+  }
+
   std::string log_fmt;
 
   std::string lv_str;
