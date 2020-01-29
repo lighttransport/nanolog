@@ -65,6 +65,10 @@ void log(int level, const char *file, const char *funcname, int line,
          const char *fmt_str, fmt::format_args args) {
   std::lock_guard<std::mutex> lock(g_mutex);
 
+  if (level < g_level) {
+    return;
+  }
+
 #if defined(__ANDROID__)
 
   std::string log_fmt;
