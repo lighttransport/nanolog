@@ -13,7 +13,8 @@ nanolog uses fmtlib for formatted logging.
 * [x] Linux
 * [x] macOS
 * [x] Windows
-* [ ] Android, Raspberry Pi(AARCH64)
+* [x] Android
+* [x] Raspberry Pi(AARCH64)
 * [ ] iOS
 * [ ] RISC-V(should work)
 
@@ -66,7 +67,10 @@ NANOLOG_FATAL("The answer is {}", 42);
 // set log level
 nanolog::set_level(nanolog::kDEBUG);
 
-// set colored output(default = true)
+// set app tag(useful for Android)
+nanolog::set_apptag("myapp");
+
+// set colored output(default = true. NOTE: Android does not use color)
 nanolog::set_color(false);
 NANOLOG_ERROR("The answer is {}", 42);
 ```

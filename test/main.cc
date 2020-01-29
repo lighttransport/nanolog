@@ -25,6 +25,7 @@ void logger2()
 int main(int argc, char **argv)
 {
   nanolog::set_level(nanolog::kTRACE);
+  nanolog::set_apptag("myapp");
 
   NANOLOG_TRACE("argc {}, argv {}", argc, argv[0]);
   NANOLOG_DEBUG("argc {}, argv {}", argc, argv[0]);

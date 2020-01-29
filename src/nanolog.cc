@@ -44,19 +44,68 @@ SOFTWARE.
 #include <stdexcept>
 #endif
 
+#if defined(__ANDROID__)
+#include <android/log.h>
+#endif
+
 namespace nanolog {
 
 static enum loglevel g_level = kINFO;
 static bool g_color = true;
 static std::mutex g_mutex;
+static std::string g_apptag;
 
 void set_level(enum loglevel level) { g_level = level; }
 
 void set_color(bool enabled) { g_color = enabled; }
 
+void set_apptag(const std::string &name) { g_apptag = name; }
+
 void log(int level, const char *file, const char *funcname, int line,
          const char *fmt_str, fmt::format_args args) {
   std::lock_guard<std::mutex> lock(g_mutex);
+
+#if defined(__ANDROID__)
+
+  std::string log_fmt;
+
+  std::time_t tm = std::time(nullptr);
+
+  // datetime
+  std::string date_header =
+      fmt::format("[{:%Y-%m-%d %H:%M:%S}] ", *std::localtime(&tm));
+
+  std::string header =
+      fmt::format("[{}:{}:{}] ", file, funcname, line);
+  log_fmt += date_header + header;
+
+  log_fmt += std::string(fmt_str);
+
+  std::string s = fmt::vformat(log_fmt, args);
+
+  android_LogPriority priority = ANDROID_LOG_DEFAULT;
+
+  if (level == kTRACE) {
+    priority = ANDROID_LOG_VERBOSE;
+  } else if (level == kDEBUG) {
+    priority = ANDROID_LOG_DEBUG;
+  } else if (level == kINFO) {
+    priority = ANDROID_LOG_INFO;
+  } else if (level == kWARN) {
+    priority = ANDROID_LOG_WARN;
+  } else if (level == kERROR) {
+    priority = ANDROID_LOG_ERROR;
+  } else if (level == kFATAL) {
+    priority = ANDROID_LOG_FATAL;
+  } else {
+    priority = ANDROID_LOG_UNKNOWN;
+  }
+
+  std::string tag = g_apptag.empty() ? "nanolog" : g_apptag;
+
+  __android_log_print(priority, tag.c_str(), "%s", s.c_str());
+
+#else
 
   std::string log_fmt;
 
@@ -95,14 +144,18 @@ void log(int level, const char *file, const char *funcname, int line,
   std::string date_header =
       fmt::format("[{:%Y-%m-%d %H:%M:%S}] ", *std::localtime(&tm));
 
-  std::string header =
-      fmt::format("[{}] [{}:{}:{}] ", lv_str, file, funcname, line);
+  std::string header = fmt::format("[{}] [{}:{}:{}] ", lv_str, file, funcname, line);
+  if (!g_apptag.empty()) {
+    log_fmt += "[" + g_apptag + "] ";
+  }
+
   log_fmt += date_header + header;
 
   // append newline
   log_fmt += std::string(fmt_str) + '\n';
 
   fmt::vprint(log_fmt, args);
+#endif
 
   if (level == kFATAL) {
 #if !defined(NANOLOG_NO_EXCEPTION_AT_FATAL)

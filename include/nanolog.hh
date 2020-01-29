@@ -48,6 +48,7 @@ enum loglevel { kTRACE, kDEBUG, kINFO, kWARN, kERROR, kFATAL };
 
 void set_level(enum loglevel level);
 void set_color(bool enabled);
+void set_apptag(const std::string &apptag);
 
 void log(int level, const char *filename, const char *funcname, int line,
          const char *fmt, fmt::format_args args);
