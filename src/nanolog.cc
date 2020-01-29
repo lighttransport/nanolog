@@ -44,7 +44,7 @@ SOFTWARE.
 #include <stdexcept>
 #endif
 
-#if defined(__ANDROID__)
+#if defined(__ANDROID__) && !defined(NANOLOG_ANDROID_USE_STDIO)
 #include <android/log.h>
 #endif
 
@@ -69,7 +69,7 @@ void log(int level, const char *file, const char *funcname, int line,
     return;
   }
 
-#if defined(__ANDROID__)
+#if defined(__ANDROID__) && !defined(NANOLOG_ANDROID_USE_STDIO)
 
   std::string log_fmt;
 

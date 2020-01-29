@@ -54,7 +54,7 @@ So you don't need to include new line character to format string.
 ## Example
 
 ```
-#include "nanolog.h"
+#include "nanolog.hh"
 
 // logging method
 NANOLOG_TRACE("The answer is {}", 42);
@@ -83,8 +83,9 @@ Do not throw an exception after fatal message output.
 
 ### `NANOLOG_NO_FMT_INCLUDE`
 
-Do not include `fmt` header files.
+Do not include `fmt` header files in `nanolog.h`.
 This macro is useful when you want to include your own fmt files.
+(fmtlib is required to build nanolog anyway)
 
 Example usage is:
 
@@ -92,8 +93,15 @@ Example usage is:
 #include "your_own/fmt/core.h"
 
 #define NANOLOG_NO_FMT_INCLUDE
-#include "nanolog.h"
+#include "nanolog.hh"
 ```
+
+### `NANOLOG_ANDROID_USE_STDIO`
+
+Print log to stdout for Android platform.
+In default, log messages are sent to Android log system(`adb logcat` to see it).
+When `NANOLOG_ANDROID_USE_STDIO` is defined, log messeages are sent to `stdout`.
+This flags is useful when you build standalone native Android program(`./a.out` style app. for example unit tester)
 
 ## TODO
 
