@@ -1,4 +1,4 @@
-CXXFLAGS=-O3 -std=c++11 -Wno-c++98-compat -Wno-c++98-compat-pedantic
+CXXFLAGS=-g -O2 -std=c++11 -Wno-c++98-compat -Wno-c++98-compat-pedantic
 
 all: format.o os.o nanolog.o
 	clang++ $(CXXFLAGS) -o run_test -Ideps/fmt/include -Iinclude test/main.cc nanolog.o format.o os.o -pthread
@@ -16,4 +16,4 @@ os.o: deps/fmt/src/os.cc
 .PHONY: clean
 
 clean:
-	rm posix.o format.o nanolog.o run_test
+	rm os.o format.o nanolog.o run_test
