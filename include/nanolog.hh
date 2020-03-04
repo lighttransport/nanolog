@@ -24,20 +24,30 @@ SOFTWARE.
 #ifndef NANOLOG_HH_
 #define NANOLOG_HH_
 
-#if !defined(NANOLOG_NO_FMT_INCLUDE)
+#include <string>
 
 #ifdef __clang__
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Weverything"
 #endif
 
+#ifdef NANOLOG_USE_PPRINTPP
+
+#include "pprintpp.hpp"
+
+#else
+
+#if !defined(NANOLOG_NO_FMT_INCLUDE)
+
 // TODO(LTE): Only import fmt::format_args and fmt::make_format_args
 #include "fmt/core.h"
 
-#ifdef __clang__
-#pragma clang diagnostic pop
 #endif
 
+#endif
+
+#ifdef __clang__
+#pragma clang diagnostic pop
 #endif
 
 namespace nanolog {
@@ -49,6 +59,51 @@ enum loglevel { kTRACE, kDEBUG, kINFO, kWARN, kERROR, kFATAL };
 void set_level(enum loglevel level);
 void set_color(bool enabled);
 void set_apptag(const std::string &apptag);
+
+#if defined(NANOLOG_USE_PPRINTPP)
+
+// AUTOFORMAT in pprintpp.hpp
+
+void log(int level, const char *filename, const char *funcname, int line,
+         const char *formatted_str, ...);
+
+#define NANOLOG_TRACE(s, ...)                                   \
+  do {                                                          \
+    nanolog::log(nanolog::kTRACE, __FILE__, __func__, __LINE__, \
+                 AUTOFORMAT(s, ##__VA_ARGS__), ##__VA_ARGS__);  \
+  } while (0)
+
+#define NANOLOG_DEBUG(s, ...)                                   \
+  do {                                                          \
+    nanolog::log(nanolog::kDEBUG, __FILE__, __func__, __LINE__, \
+                 AUTOFORMAT(s, ##__VA_ARGS__), ##__VA_ARGS__);  \
+  } while (0)
+
+#define NANOLOG_INFO(s, ...)                                   \
+  do {                                                         \
+    nanolog::log(nanolog::kINFO, __FILE__, __func__, __LINE__, \
+                 AUTOFORMAT(s, ##__VA_ARGS__), ##__VA_ARGS__); \
+  } while (0)
+
+#define NANOLOG_WARN(s, ...)                                   \
+  do {                                                         \
+    nanolog::log(nanolog::kWARN, __FILE__, __func__, __LINE__, \
+                 AUTOFORMAT(s, ##__VA_ARGS__), ##__VA_ARGS__); \
+  } while (0)
+
+#define NANOLOG_ERROR(s, ...)                                   \
+  do {                                                          \
+    nanolog::log(nanolog::kERROR, __FILE__, __func__, __LINE__, \
+                 AUTOFORMAT(s, ##__VA_ARGS__), ##__VA_ARGS__);  \
+  } while (0)
+
+#define NANOLOG_FATAL(s, ...)                                   \
+  do {                                                          \
+    nanolog::log(nanolog::kFATAL, __FILE__, __func__, __LINE__, \
+                 AUTOFORMAT(s, ##__VA_ARGS__), ##__VA_ARGS__);  \
+  } while (0)
+
+#else
 
 void log(int level, const char *filename, const char *funcname, int line,
          const char *fmt, fmt::format_args args);
@@ -94,6 +149,8 @@ void logger(int level, const char *filename, const char *funcname, int line,
     nanolog::logger(nanolog::kFATAL, __FILE__, __func__, __LINE__, \
                     __VA_ARGS__);                                  \
   } while (0)
+
+#endif
 
 }  // namespace nanolog
 

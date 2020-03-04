@@ -27,8 +27,16 @@ nanolog uses fmtlib for formatted logging.
 
 ## Build
 
-Just copy `nanolog/include`, `nanolog/src` and `deps/fmt` to your project folder.
-Include `nanolog/src/nanolog.cc`, `deps/fmt/src/format.cc` and `deps/fmt/src/posix.cc` to your project.
+Just copy `nanolog/include`, `nanolog/src` and `deps/fmt` or `deps/pprintpp` to your project folder.
+
+### fmtlib backend
+
+Add `nanolog/src/nanolog.cc`, `deps/fmt/src/format.cc` and `deps/fmt/src/posix.cc` to your project.
+
+### pprintpp backend
+
+Add `nanolog/src/nanolog.cc` to your project.
+(pprintpp is a header only library, so no extra .cc required)
 
 ### Build test on Visual Studio 2017
 
@@ -81,7 +89,9 @@ NANOLOG_ERROR("The answer is {}", 42);
 
 Do not throw an exception after fatal message output.
 
-### `NANOLOG_NO_FMT_INCLUDE`
+### fmtlib backend
+
+#### `NANOLOG_NO_FMT_INCLUDE`
 
 Do not include `fmt` header files in `nanolog.h`.
 This macro is useful when you want to include your own fmt files.
@@ -95,6 +105,10 @@ Example usage is:
 #define NANOLOG_NO_FMT_INCLUDE
 #include "nanolog.hh"
 ```
+
+### pprintpp backend
+
+T.B.W.
 
 ### `NANOLOG_ANDROID_USE_STDIO`
 
@@ -116,4 +130,5 @@ nanolog is licensed under MIT license.
 
 ## Third party
 
-* fmtlib : 2-clause BSD license.
+* fmtlib : 2-clause BSD license. https://github.com/fmtlib/fmt
+* pprintpp: MIT or simplified BSD(2-clause BSD?) license. https://github.com/wolever/pprintpp

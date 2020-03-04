@@ -28,8 +28,16 @@ SOFTWARE.
 #pragma clang diagnostic ignored "-Weverything"
 #endif
 
+#if NANOLOG_USE_PPRINTPP
+
+#include "pprintpp.hpp"
+
+#else
+
 #include "fmt/chrono.h"
 #include "fmt/core.h"
+
+#endif
 
 #ifdef __clang__
 #pragma clang diagnostic pop
@@ -61,6 +69,116 @@ void set_color(bool enabled) { g_color = enabled; }
 
 void set_apptag(const std::string &name) { g_apptag = name; }
 
+#ifdef NANOLOG_USE_PPRINTPP
+void log(int level, const char *file, const char *funcname, int line,
+         const char *formatted_str, ...) {
+  std::lock_guard<std::mutex> lock(g_mutex);
+
+  if (level < g_level) {
+    return;
+  }
+
+#if defined(__ANDROID__) && !defined(NANOLOG_ANDROID_USE_STDIO)
+
+  std::string log_fmt;
+
+  std::time_t tm = std::time(nullptr);
+
+  // TODO
+  // datetime
+  std::string date_header;
+
+  std::string header;
+  log_fmt += date_header + header;
+
+  log_fmt += std::string(fmt_str);
+
+  std::string s = fmt::vformat(log_fmt, args);
+
+  android_LogPriority priority = ANDROID_LOG_DEFAULT;
+
+  if (level == kTRACE) {
+    priority = ANDROID_LOG_VERBOSE;
+  } else if (level == kDEBUG) {
+    priority = ANDROID_LOG_DEBUG;
+  } else if (level == kINFO) {
+    priority = ANDROID_LOG_INFO;
+  } else if (level == kWARN) {
+    priority = ANDROID_LOG_WARN;
+  } else if (level == kERROR) {
+    priority = ANDROID_LOG_ERROR;
+  } else if (level == kFATAL) {
+    priority = ANDROID_LOG_FATAL;
+  } else {
+    priority = ANDROID_LOG_UNKNOWN;
+  }
+
+  std::string tag = g_apptag.empty() ? "nanolog" : g_apptag;
+
+  __android_log_print(priority, tag.c_str(), "%s", s.c_str());
+
+#else
+
+  std::string log_fmt;
+
+  std::string lv_str;
+  if (level == kTRACE) {
+    lv_str = "trace";
+  } else if (level == kDEBUG) {
+    lv_str = "debug";
+  } else if (level == kINFO) {
+    lv_str = "info";
+  } else if (level == kWARN) {
+    if (g_color) {
+      lv_str = "\033[33mwarn\033[m";
+    } else {
+      lv_str = "warn";
+    }
+  } else if (level == kERROR) {
+    if (g_color) {
+      lv_str = "\033[31merror\033[m";
+    } else {
+      lv_str = "error";
+    }
+  } else if (level == kFATAL) {
+    if (g_color) {
+      lv_str = "\033[31m\033[1mfatal\033[m";
+    } else {
+      lv_str = "fatal";
+    }
+  } else {
+    lv_str = "UNKNOWN";
+  }
+
+  std::time_t tm = std::time(nullptr);
+
+  // datetime
+  std::string date_header; // TODO
+  //    fmt::format("[{:%Y-%m-%d %H:%M:%S}] ", *std::localtime(&tm));
+
+  std::string header = "[" + lv_str + "] [" + file + ":" + funcname  + ":" + std::to_string(line) + "] ";
+  if (!g_apptag.empty()) {
+    log_fmt += "[" + g_apptag + "] ";
+  }
+
+  log_fmt += date_header + header;
+
+  // append newline
+  log_fmt += std::string(formatted_str) + '\n';
+
+  va_list args;
+  va_start (args, formatted_str);
+  vprintf(log_fmt.c_str(), args);
+  va_end (args);
+#endif
+
+  if (level == kFATAL) {
+#if !defined(NANOLOG_NO_EXCEPTION_AT_FATAL)
+    std::runtime_error("fatal");
+#endif
+  }
+}
+#else
 void log(int level, const char *file, const char *funcname, int line,
          const char *fmt_str, fmt::format_args args) {
   std::lock_guard<std::mutex> lock(g_mutex);
@@ -167,5 +285,6 @@ void log(int level, const char *file, const char *funcname, int line,
 #endif
   }
 }
+#endif
 
 }  // namespace nanolog

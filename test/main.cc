@@ -27,16 +27,18 @@ int main(int argc, char **argv)
   nanolog::set_level(nanolog::kTRACE);
   nanolog::set_apptag("myapp");
 
-  NANOLOG_TRACE("argc {}, argv {}", argc, argv[0]);
-  NANOLOG_DEBUG("argc {}, argv {}", argc, argv[0]);
-  NANOLOG_INFO("argc {}, argv {}", argc, argv[0]);
-  NANOLOG_WARN("argc {}, argv {}", argc, argv[0]);
-  NANOLOG_ERROR("argc {}, argv {}", argc, argv[0]);
+  NANOLOG_INFO("start");
+
+  NANOLOG_TRACE("argc {}, argv {s}", argc, argv[0]);
+  NANOLOG_DEBUG("argc {}, argv {s}", argc, argv[0]);
+  NANOLOG_INFO("argc {}, argv {s}", argc, argv[0]);
+  NANOLOG_WARN("argc {}, argv {s}", argc, argv[0]);
+  NANOLOG_ERROR("argc {}, argv {s}", argc, argv[0]);
   //NANOLOG_FATAL("argc {}, argv {}", argc, argv[0]);
 
   nanolog::set_color(false);
-  NANOLOG_WARN("argc {}, argv {}", argc, argv[0]);
-  NANOLOG_ERROR("argc {}, argv {}", argc, argv[0]);
+  NANOLOG_WARN("argc {}, argv {s}", argc, argv[0]);
+  NANOLOG_ERROR("argc {}, argv {s}", argc, argv[0]);
 
   std::thread th1(logger1);
   std::thread th2(logger2);
