@@ -31,11 +31,7 @@ SOFTWARE.
 #pragma clang diagnostic ignored "-Weverything"
 #endif
 
-#ifdef NANOLOG_USE_PPRINTPP
-
-#include "pprintpp.hpp"
-
-#else
+#ifdef NANOLOG_USE_FMTLIB
 
 #if !defined(NANOLOG_NO_FMT_INCLUDE)
 
@@ -43,6 +39,10 @@ SOFTWARE.
 #include "fmt/core.h"
 
 #endif
+
+#else
+
+#include "pprintpp.hpp"
 
 #endif
 
@@ -60,7 +60,11 @@ void set_level(enum loglevel level);
 void set_color(bool enabled);
 void set_apptag(const std::string &apptag);
 
-#if defined(NANOLOG_USE_PPRINTPP)
+// Show current time?(default = enabled. Disabling print time may give faster
+// logging)
+void set_printtime(bool enabled);
+
+#if !defined(NANOLOG_USE_FMTLIB)
 
 // AUTOFORMAT in pprintpp.hpp
 
@@ -150,7 +154,7 @@ void logger(int level, const char *filename, const char *funcname, int line,
                     __VA_ARGS__);                                  \
   } while (0)
 
-#endif
+#endif  // NANOLOG_USE_FMTLIB
 
 }  // namespace nanolog
 

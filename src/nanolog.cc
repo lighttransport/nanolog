@@ -28,14 +28,14 @@ SOFTWARE.
 #pragma clang diagnostic ignored "-Weverything"
 #endif
 
-#if NANOLOG_USE_PPRINTPP
-
-#include "pprintpp.hpp"
-
-#else
+#if NANOLOG_USE_FMTLIB
 
 #include "fmt/chrono.h"
 #include "fmt/core.h"
+
+#else
+
+#include "pprintpp.hpp"
 
 #endif
 
@@ -47,6 +47,8 @@ SOFTWARE.
 #include <cstdarg>
 #include <ctime>
 #include <mutex>
+#include <sstream>
+#include <iomanip> // std::put_time
 
 #if !defined(NANOLOG_NO_EXCEPTION_AT_FATAL)
 #include <stdexcept>
@@ -62,6 +64,7 @@ static enum loglevel g_level = kINFO;
 static bool g_color = true;
 static std::mutex g_mutex;
 static std::string g_apptag;
+static bool g_printtime = true;
 
 void set_level(enum loglevel level) { g_level = level; }
 
@@ -69,7 +72,9 @@ void set_color(bool enabled) { g_color = enabled; }
 
 void set_apptag(const std::string &name) { g_apptag = name; }
 
-#ifdef NANOLOG_USE_PPRINTPP
+void set_primttime(bool enabled) { g_printtime = enabled; }
+
+#if !defined(NANOLOG_USE_FMTLIB)
 void log(int level, const char *file, const char *funcname, int line,
          const char *formatted_str, ...) {
   std::lock_guard<std::mutex> lock(g_mutex);
@@ -82,14 +87,21 @@ void log(int level, const char *file, const char *funcname, int line,
 
   std::string log_fmt;
 
-  std::time_t tm = std::time(nullptr);
+  std::string header = "[" + lv_str + "] [" + file + ":" + funcname  + ":" + std::to_string(line) + "] ";
 
-  // TODO
-  // datetime
-  std::string date_header;
+  if (g_printtime) {
+    std::time_t tm = std::time(nullptr);
+    std::tm ttm = *std::localtime(&tm);
 
-  std::string header;
-  log_fmt += date_header + header;
+    // datetime
+    std::stringstream ss;
+    ss << std::put_time(&ttm, "[%Y-%m-%d %H:%M:%S] ");
+    std::string date_header = ss.str();
+
+    log_fmt += date_header + header;
+  } else {
+    log_fmt += header;
+  }
 
   log_fmt += std::string(fmt_str);
 
@@ -150,18 +162,25 @@ void log(int level, const char *file, const char *funcname, int line,
     lv_str = "UNKNOWN";
   }
 
-  std::time_t tm = std::time(nullptr);
-
-  // datetime
-  std::string date_header; // TODO
-  //    fmt::format("[{:%Y-%m-%d %H:%M:%S}] ", *std::localtime(&tm));
-
   std::string header = "[" + lv_str + "] [" + file + ":" + funcname  + ":" + std::to_string(line) + "] ";
   if (!g_apptag.empty()) {
     log_fmt += "[" + g_apptag + "] ";
   }
 
-  log_fmt += date_header + header;
+  if (g_printtime) {
+    // datetime
+
+    std::time_t tm = std::time(nullptr);
+    std::tm ttm = *std::localtime(&tm);
+
+    std::stringstream ss;
+    ss << std::put_time(&ttm, "[%Y-%m-%d %H:%M:%S] ");
+    std::string date_header = ss.str();
+
+    log_fmt += date_header + header;
+  } else {
+    log_fmt += header;
+  }
 
   // append newline
   log_fmt += std::string(formatted_str) + '\n';

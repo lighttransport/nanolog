@@ -1,19 +1,12 @@
 CXXFLAGS=-O3 -std=c++11 -Wno-c++98-compat -Wno-c++98-compat-pedantic
 
-all: format.o os.o nanolog.o
-	clang++ $(CXXFLAGS) -o run_test -Ideps/fmt/include -Iinclude test/main.cc nanolog.o format.o os.o -pthread
+all: nanolog.o
+	clang++ $(CXXFLAGS) -o run_test -Ideps/pprintpp/include -Iinclude test/main.cc nanolog.o -pthread
 
 nanolog.o: src/nanolog.cc
-	clang++ $(CXXFLAGS) -c -Ideps/fmt/include -Iinclude src/nanolog.cc
-
-format.o: deps/fmt/src/format.cc
-	clang++ $(CXXFLAGS) -c -Ideps/fmt/include $<
-
-os.o: deps/fmt/src/os.cc
-	clang++ $(CXXFLAGS) -c -Ideps/fmt/include $<
-
+	clang++ $(CXXFLAGS) -c -Ideps/pprintpp/include -Iinclude src/nanolog.cc
 
 .PHONY: clean
 
 clean:
-	rm posix.o format.o nanolog.o run_test
+	rm nanolog.o run_test

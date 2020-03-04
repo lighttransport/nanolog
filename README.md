@@ -1,12 +1,17 @@
 # nanolog, Nanoscale logging library in C++11
 
 nanolog is a simple, portable and nanoscale logging library in C++11.
-nanolog uses fmtlib for formatted logging.
+nanolog uses pprintpp or fmtlib for Python-like formatted logging(`{}`).
 
 ## Features
 
 * Faster compilation time. nanolog itself uses very small amount of template code.
+  * Default uses pprintpp backend, which is fast to compile.
+  * fmtlib backend is also provided.
 * Thread-safe. nanolog logging is a thread-safe.
+
+nanolog is good if you want faster C++11 compile time, but don't want absolute performance of logging output.
+(e.g. graphics, raytracing, machine learning. An application where non-text debugging is primarily used)
 
 ## Supported platform
 
@@ -27,16 +32,16 @@ nanolog uses fmtlib for formatted logging.
 
 ## Build
 
-Just copy `nanolog/include`, `nanolog/src` and `deps/fmt` or `deps/pprintpp` to your project folder.
-
-### fmtlib backend
-
-Add `nanolog/src/nanolog.cc`, `deps/fmt/src/format.cc` and `deps/fmt/src/posix.cc` to your project.
+Just copy `nanolog/include`, `nanolog/src` and `deps/pprintpp` or `deps/fmtlib` to your project folder.
 
 ### pprintpp backend
 
 Add `nanolog/src/nanolog.cc` to your project.
 (pprintpp is a header only library, so no extra .cc required)
+
+### fmtlib backend
+
+Add `nanolog/src/nanolog.cc`, `deps/fmt/src/format.cc` and `deps/fmt/src/posix.cc` to your project.
 
 ### Build test on Visual Studio 2017
 
@@ -91,6 +96,8 @@ Do not throw an exception after fatal message output.
 
 ### fmtlib backend
 
+Use `NANOLOG_USE_FMTLIB` compile flags to use fmtlib backend.
+
 #### `NANOLOG_NO_FMT_INCLUDE`
 
 Do not include `fmt` header files in `nanolog.h`.
@@ -106,9 +113,6 @@ Example usage is:
 #include "nanolog.hh"
 ```
 
-### pprintpp backend
-
-T.B.W.
 
 ### `NANOLOG_ANDROID_USE_STDIO`
 
@@ -130,5 +134,5 @@ nanolog is licensed under MIT license.
 
 ## Third party
 
-* fmtlib : 2-clause BSD license. https://github.com/fmtlib/fmt
 * pprintpp: MIT or simplified BSD(2-clause BSD?) license. https://github.com/wolever/pprintpp
+* fmtlib : 2-clause BSD license. https://github.com/fmtlib/fmt
