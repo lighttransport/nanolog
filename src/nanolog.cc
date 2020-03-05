@@ -91,56 +91,6 @@ void log(int level, const char *file, const char *funcname, int line,
     return;
   }
 
-#if defined(__ANDROID__) && !defined(NANOLOG_ANDROID_USE_STDIO)
-
-  std::string log_fmt;
-
-  std::string header = "[" + lv_str + "] [" + file + ":" + funcname  + ":" + std::to_string(line) + "] ";
-
-  if (g_printtime) {
-    std::time_t tm = std::time(nullptr);
-    std::tm ttm = *std::localtime(&tm);
-
-    // datetime
-    std::stringstream ss;
-    ss << std::put_time(&ttm, "[%Y-%m-%d %H:%M:%S] ");
-    std::string date_header = ss.str();
-
-    log_fmt += date_header + header;
-  } else {
-    log_fmt += header;
-  }
-
-  log_fmt += std::string(fmt_str);
-
-  std::string s = fmt::vformat(log_fmt, args);
-
-  android_LogPriority priority = ANDROID_LOG_DEFAULT;
-
-  if (level == kTRACE) {
-    priority = ANDROID_LOG_VERBOSE;
-  } else if (level == kDEBUG) {
-    priority = ANDROID_LOG_DEBUG;
-  } else if (level == kINFO) {
-    priority = ANDROID_LOG_INFO;
-  } else if (level == kWARN) {
-    priority = ANDROID_LOG_WARN;
-  } else if (level == kERROR) {
-    priority = ANDROID_LOG_ERROR;
-  } else if (level == kFATAL) {
-    priority = ANDROID_LOG_FATAL;
-  } else {
-    priority = ANDROID_LOG_UNKNOWN;
-  }
-
-  std::string tag = g_apptag.empty() ? "nanolog" : g_apptag;
-
-  __android_log_print(priority, tag.c_str(), "%s", s.c_str());
-
-#else
-
-  std::string log_fmt;
-
   std::string lv_str;
   if (level == kTRACE) {
     lv_str = "trace";
@@ -170,7 +120,54 @@ void log(int level, const char *file, const char *funcname, int line,
     lv_str = "UNKNOWN";
   }
 
+  std::string log_fmt;
   std::string header = "[" + lv_str + "] [" + file + ":" + funcname  + ":" + std::to_string(line) + "] ";
+
+#if defined(__ANDROID__) && !defined(NANOLOG_ANDROID_USE_STDIO)
+
+  if (g_printtime) {
+    std::time_t tm = std::time(nullptr);
+    std::tm ttm = *std::localtime(&tm);
+
+    // datetime
+    std::stringstream ss;
+    ss << std::put_time(&ttm, "[%Y-%m-%d %H:%M:%S] ");
+    std::string date_header = ss.str();
+
+    log_fmt += date_header + header;
+  } else {
+    log_fmt += header;
+  }
+
+  log_fmt += std::string(formatted_str);
+
+  android_LogPriority priority = ANDROID_LOG_DEFAULT;
+
+  if (level == kTRACE) {
+    priority = ANDROID_LOG_VERBOSE;
+  } else if (level == kDEBUG) {
+    priority = ANDROID_LOG_DEBUG;
+  } else if (level == kINFO) {
+    priority = ANDROID_LOG_INFO;
+  } else if (level == kWARN) {
+    priority = ANDROID_LOG_WARN;
+  } else if (level == kERROR) {
+    priority = ANDROID_LOG_ERROR;
+  } else if (level == kFATAL) {
+    priority = ANDROID_LOG_FATAL;
+  } else {
+    priority = ANDROID_LOG_UNKNOWN;
+  }
+
+  std::string tag = g_apptag.empty() ? "nanolog" : g_apptag;
+
+  va_list args;
+  va_start (args, formatted_str);
+  __android_log_vprint(priority, tag.c_str(), log_fmt.c_str(), args);
+  va_end (args);
+
+#else
+
   if (!g_apptag.empty()) {
     log_fmt += "[" + g_apptag + "] ";
   }
