@@ -7,18 +7,19 @@ nanolog uses `pprintpp`(default) or `fmtlib` for Python-like formatted logging(`
 
 * Faster compilation time. nanolog itself uses very small amount of template code.
   * Default uses `pprintpp` backend, which is fast to compile than `fmtlib`.
+    * Using `pprintpp` is rougly 3x ~ 10x faster compile than `fmtlib`(when `-O2` optimization enabled)
   * fmtlib backend is also provided.
 * Thread-safe. nanolog logging is a thread-safe.
 
-nanolog is good if you want faster C++11 compile time, but don't want absolute performance of logging output.
-(e.g. graphics, raytracing, machine learning. An application where non-text debugging is primarily used)
+nanolog is good if you want faster C++11 compile time, but don't need absolute performance of logging output.
+e.g. graphics, raytracing, machine learning application. An application where text logging is important for data loading/saving, but non-text debugging is primarily used in its primary task.
 
 ## Supported platform
 
-* [x] Linux
+* [x] Linux 64bit
 * [x] macOS
-* [x] Windows
-* [x] Android
+* [x] Windows 10 64bit
+* [x] Android arm64va8
 * [x] Raspberry Pi(AARCH64)
 * [ ] iOS(Should work)
 * [ ] RISC-V(should work)
@@ -84,7 +85,10 @@ nanolog::set_level(nanolog::kDEBUG);
 // set app tag(useful for Android)
 nanolog::set_apptag("myapp");
 
-// set colored output(default = true. NOTE: Android does not use color)
+// print time(disabled by default for Android logcat)
+nanolog::set_printtime(false);
+
+// set colored output(default = true. NOTE: to see colored output on Android logcat, you may need to see it on Android Studio)
 nanolog::set_color(false);
 NANOLOG_ERROR("The answer is {}", 42);
 ```
