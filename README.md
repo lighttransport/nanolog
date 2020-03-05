@@ -1,12 +1,12 @@
 # nanolog, Nanoscale logging library in C++11
 
 nanolog is a simple, portable and nanoscale logging library in C++11.
-nanolog uses pprintpp or fmtlib for Python-like formatted logging(`{}`).
+nanolog uses `pprintpp`(default) or `fmtlib` for Python-like formatted logging(`{}`).
 
 ## Features
 
 * Faster compilation time. nanolog itself uses very small amount of template code.
-  * Default uses pprintpp backend, which is fast to compile.
+  * Default uses `pprintpp` backend, which is fast to compile than `fmtlib`.
   * fmtlib backend is also provided.
 * Thread-safe. nanolog logging is a thread-safe.
 
@@ -20,19 +20,20 @@ nanolog is good if you want faster C++11 compile time, but don't want absolute p
 * [x] Windows
 * [x] Android
 * [x] Raspberry Pi(AARCH64)
-* [ ] iOS
+* [ ] iOS(Should work)
 * [ ] RISC-V(should work)
 
 ## Supported compilers
 
-* Clang 3.9+
-* GCC 5.4+
-* Visual Studio 2017+
-* Other C++11 compatible compilers
+* C++11 compiler
+  * Clang 3.9+
+  * GCC 5.4+
+  * Visual Studio 2017+
+  * Other C++11 compatible compilers
 
 ## Build
 
-Just copy `nanolog/include`, `nanolog/src` and `deps/pprintpp` or `deps/fmtlib` to your project folder.
+Just copy `nanolog/include`, `nanolog/src` and `deps/pprintpp` or `deps/fmtlib` to your project folder and add .cc and .hh for your project.
 
 ### pprintpp backend
 
@@ -109,6 +110,7 @@ Example usage is:
 ```
 #include "your_own/fmt/core.h"
 
+#define NANOLOG_USE_FMTLIB
 #define NANOLOG_NO_FMT_INCLUDE
 #include "nanolog.hh"
 ```
