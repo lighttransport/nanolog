@@ -1,0 +1,18 @@
+CXXFLAGS=-g -O2 -std=c++11 -Wno-c++98-compat -Wno-c++98-compat-pedantic -DNANOLOG_USE_FMTLIB -Ideps/fmt/include
+
+all: nanolog.o os.o format.o
+	clang++ $(CXXFLAGS) -o run_test -Iinclude test/main.cc $? -pthread
+
+os.o: deps/fmt/src/os.cc
+	clang++ $(CXXFLAGS) -c  -Iinclude deps/fmt/src/os.cc
+
+format.o: deps/fmt/src/format.cc
+	clang++ $(CXXFLAGS) -c  -Iinclude deps/fmt/src/format.cc
+
+nanolog.o: src/nanolog.cc
+	clang++ $(CXXFLAGS) -c -Iinclude src/nanolog.cc
+
+.PHONY: clean
+
+clean:
+	rm nanolog.o os.o format.o run_test
