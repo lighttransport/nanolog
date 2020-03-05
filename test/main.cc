@@ -40,11 +40,22 @@ int main(int argc, char **argv)
   NANOLOG_WARN("argc {}, argv {s}", argc, argv[0]);
   NANOLOG_ERROR("argc {}, argv {s}", argc, argv[0]);
 
-  std::thread th1(logger1);
-  std::thread th2(logger2);
+  {
+    std::thread th1(logger1);
+    std::thread th2(logger2);
 
-  th1.join();
-  th2.join();
+    th1.join();
+    th2.join();
+  }
+
+  nanolog::set_printtime(false);
+  {
+    std::thread th1(logger1);
+    std::thread th2(logger2);
+
+    th1.join();
+    th2.join();
+  }
 
   return 0;
 }

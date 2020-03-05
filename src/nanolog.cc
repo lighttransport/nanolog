@@ -64,7 +64,13 @@ static enum loglevel g_level = kINFO;
 static bool g_color = true;
 static std::mutex g_mutex;
 static std::string g_apptag;
+
+#if defined(__ANDROID__) && !defined(NANOLOG_ANDROID_USE_STDIO)
+// Android logcat prints time, so no need to print time in nanolog messsage.
+static bool g_printtime = false;
+#else
 static bool g_printtime = true;
+#endif
 
 void set_level(enum loglevel level) { g_level = level; }
 
@@ -72,7 +78,9 @@ void set_color(bool enabled) { g_color = enabled; }
 
 void set_apptag(const std::string &name) { g_apptag = name; }
 
-void set_primttime(bool enabled) { g_printtime = enabled; }
+void set_printtime(bool enabled) {
+  g_printtime = enabled;
+}
 
 #if !defined(NANOLOG_USE_FMTLIB)
 void log(int level, const char *file, const char *funcname, int line,

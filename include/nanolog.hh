@@ -60,7 +60,7 @@ void set_level(enum loglevel level);
 void set_color(bool enabled);
 void set_apptag(const std::string &apptag);
 
-// Show current time?(default = enabled. Disabling print time may give faster
+// Show current time?(default = false for Android logcat, true for other platform. Disabling print time may give faster
 // logging)
 void set_printtime(bool enabled);
 
