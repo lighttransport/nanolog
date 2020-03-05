@@ -60,51 +60,74 @@ void set_level(enum loglevel level);
 void set_color(bool enabled);
 void set_apptag(const std::string &apptag);
 
-// Show current time?(default = false for Android logcat, true for other platform. Disabling print time may give faster
-// logging)
+// Show current time?(default = false for Android logcat, true for other
+// platform. Disabling print time may give faster logging)
 void set_printtime(bool enabled);
 
 #if !defined(NANOLOG_USE_FMTLIB)
 
-// AUTOFORMAT in pprintpp.hpp
+// AUTOFORMAT in pprintpp.hpp failed to compile on msvc, so provide our own
+// portable one
+
+#define NANOLOG_AUTOFORMAT(x, s, ...)                              \
+  {                                                                \
+    struct strprov {                                               \
+      static constexpr const char *const str() { return s; }       \
+    };                                                             \
+    using paramtypes = decltype(pprintpp::tie_types(__VA_ARGS__)); \
+    using af = pprintpp::autoformat_t<strprov, paramtypes>;        \
+    x = af::str();                                                 \
+  }
 
 void log(int level, const char *filename, const char *funcname, int line,
          const char *formatted_str, ...);
 
-#define NANOLOG_TRACE(s, ...)                                   \
-  do {                                                          \
-    nanolog::log(nanolog::kTRACE, __FILE__, __func__, __LINE__, \
-                 AUTOFORMAT(s, ##__VA_ARGS__), ##__VA_ARGS__);  \
+#define NANOLOG_TRACE(s, ...)                                        \
+  do {                                                               \
+    const char *fmt;                                                 \
+    NANOLOG_AUTOFORMAT(fmt, s, ##__VA_ARGS__)                        \
+    nanolog::log(nanolog::kTRACE, __FILE__, __func__, __LINE__, fmt, \
+                 ##__VA_ARGS__);                                     \
   } while (0)
 
-#define NANOLOG_DEBUG(s, ...)                                   \
-  do {                                                          \
-    nanolog::log(nanolog::kDEBUG, __FILE__, __func__, __LINE__, \
-                 AUTOFORMAT(s, ##__VA_ARGS__), ##__VA_ARGS__);  \
+#define NANOLOG_DEBUG(s, ...)                                        \
+  do {                                                               \
+    const char *fmt;                                                 \
+    NANOLOG_AUTOFORMAT(fmt, s, ##__VA_ARGS__)                        \
+    nanolog::log(nanolog::kDEBUG, __FILE__, __func__, __LINE__, fmt, \
+                 ##__VA_ARGS__);                                     \
   } while (0)
 
-#define NANOLOG_INFO(s, ...)                                   \
-  do {                                                         \
-    nanolog::log(nanolog::kINFO, __FILE__, __func__, __LINE__, \
-                 AUTOFORMAT(s, ##__VA_ARGS__), ##__VA_ARGS__); \
+#define NANOLOG_INFO(s, ...)                                        \
+  do {                                                              \
+    const char *fmt;                                                \
+    NANOLOG_AUTOFORMAT(fmt, s, ##__VA_ARGS__)                       \
+    nanolog::log(nanolog::kINFO, __FILE__, __func__, __LINE__, fmt, \
+                 ##__VA_ARGS__);                                    \
   } while (0)
 
-#define NANOLOG_WARN(s, ...)                                   \
-  do {                                                         \
-    nanolog::log(nanolog::kWARN, __FILE__, __func__, __LINE__, \
-                 AUTOFORMAT(s, ##__VA_ARGS__), ##__VA_ARGS__); \
+#define NANOLOG_WARN(s, ...)                                        \
+  do {                                                              \
+    const char *fmt;                                                \
+    NANOLOG_AUTOFORMAT(fmt, s, ##__VA_ARGS__)                       \
+    nanolog::log(nanolog::kWARN, __FILE__, __func__, __LINE__, fmt, \
+                 ##__VA_ARGS__);                                    \
   } while (0)
 
-#define NANOLOG_ERROR(s, ...)                                   \
-  do {                                                          \
-    nanolog::log(nanolog::kERROR, __FILE__, __func__, __LINE__, \
-                 AUTOFORMAT(s, ##__VA_ARGS__), ##__VA_ARGS__);  \
+#define NANOLOG_ERROR(s, ...)                                        \
+  do {                                                               \
+    const char *fmt;                                                 \
+    NANOLOG_AUTOFORMAT(fmt, s, ##__VA_ARGS__)                        \
+    nanolog::log(nanolog::kERROR, __FILE__, __func__, __LINE__, fmt, \
+                 ##__VA_ARGS__);                                     \
   } while (0)
 
-#define NANOLOG_FATAL(s, ...)                                   \
-  do {                                                          \
-    nanolog::log(nanolog::kFATAL, __FILE__, __func__, __LINE__, \
-                 AUTOFORMAT(s, ##__VA_ARGS__), ##__VA_ARGS__);  \
+#define NANOLOG_FATAL(s, ...)                                        \
+  do {                                                               \
+    const char *fmt;                                                 \
+    NANOLOG_AUTOFORMAT(fmt, s, ##__VA_ARGS__)                        \
+    nanolog::log(nanolog::kFATAL, __FILE__, __func__, __LINE__, fmt, \
+                 ##__VA_ARGS__);                                     \
   } while (0)
 
 #else
