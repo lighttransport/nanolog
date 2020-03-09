@@ -85,7 +85,6 @@ void set_printtime(bool enabled) {
 #if !defined(NANOLOG_USE_FMTLIB)
 void log(int level, const char *file, const char *funcname, int line,
          const char *formatted_str, ...) {
-  std::lock_guard<std::mutex> lock(g_mutex);
 
   if (level < g_level) {
     return;
@@ -192,7 +191,12 @@ void log(int level, const char *file, const char *funcname, int line,
 
   va_list args;
   va_start (args, formatted_str);
-  vprintf(log_fmt.c_str(), args);
+
+  {
+    std::lock_guard<std::mutex> lock(g_mutex);
+    vprintf(log_fmt.c_str(), args);
+  }
+
   va_end (args);
 #endif
 
@@ -205,7 +209,6 @@ void log(int level, const char *file, const char *funcname, int line,
 #else
 void log(int level, const char *file, const char *funcname, int line,
          const char *fmt_str, fmt::format_args args) {
-  std::lock_guard<std::mutex> lock(g_mutex);
 
   if (level < g_level) {
     return;
@@ -300,7 +303,10 @@ void log(int level, const char *file, const char *funcname, int line,
   // append newline
   log_fmt += std::string(fmt_str) + '\n';
 
-  fmt::vprint(log_fmt, args);
+  {
+    std::lock_guard<std::mutex> lock(g_mutex);
+    fmt::vprint(log_fmt, args);
+  }
 #endif
 
   if (level == kFATAL) {
