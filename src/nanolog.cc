@@ -162,6 +162,7 @@ void log(int level, const char *file, const char *funcname, int line,
 
   va_list args;
   va_start (args, formatted_str);
+  // it looks Android logging is thread safe, so do not use the lock
   __android_log_vprint(priority, tag.c_str(), log_fmt.c_str(), args);
   va_end (args);
 
@@ -252,6 +253,7 @@ void log(int level, const char *file, const char *funcname, int line,
 
   std::string tag = g_apptag.empty() ? "nanolog" : g_apptag;
 
+  // it looks Android logging is thread safe, so do not use the lock
   __android_log_print(priority, tag.c_str(), "%s", s.c_str());
 
 #else
