@@ -41,6 +41,16 @@ Just copy `nanolog/include`, `nanolog/src` and `deps/pprintpp` or `deps/fmtlib` 
 Add `nanolog/src/nanolog.cc` to your project.
 (pprintpp is a header only library, so no extra .cc required)
 
+#### Limitation
+
+Single argument would give compilation error(due to C++'s variadic macro specification) when you raise the compiler warning level.
+
+```
+NANOLOG_INFO("hello");   // => error
+
+NANOLOG_INFO("{}", "hello"); // => ok
+```
+
 ### fmtlib backend
 
 Add `nanolog/src/nanolog.cc`, `deps/fmt/src/format.cc` and `deps/fmt/src/posix.cc` to your project.

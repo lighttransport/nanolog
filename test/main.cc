@@ -2,7 +2,7 @@
 
 #include <thread>
 
-void logger1()
+static void logger1()
 {
   int n = 100;
 
@@ -12,7 +12,7 @@ void logger1()
   }
 }
 
-void logger2()
+static void logger2()
 {
   int n = 120;
 
@@ -24,17 +24,20 @@ void logger2()
 
 int main(int argc, char **argv)
 {
+  (void)argc;
+  (void)argv;
+
   nanolog::set_level(nanolog::kTRACE);
   nanolog::set_apptag("myapp");
 
-  NANOLOG_INFO("start");
+  NANOLOG_INFO("{}", "start");
 
   NANOLOG_TRACE("argc {}, argv {s}", argc, argv[0]);
   NANOLOG_DEBUG("argc {}, argv {s}", argc, argv[0]);
   NANOLOG_INFO("argc {}, argv {s}", argc, argv[0]);
   NANOLOG_WARN("argc {}, argv {s}", argc, argv[0]);
   NANOLOG_ERROR("argc {}, argv {s}", argc, argv[0]);
-  //NANOLOG_FATAL("argc {}, argv {}", argc, argv[0]);
+  //NANOLOG_FATAL("argc {}, argv {}", argc, argv[0]); // This may result in program abort()
 
   nanolog::set_color(false);
   NANOLOG_WARN("argc {}, argv {s}", argc, argv[0]);

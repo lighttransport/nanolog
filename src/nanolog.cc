@@ -63,7 +63,17 @@ namespace nanolog {
 static enum loglevel g_level = kINFO;
 static bool g_color = true;
 static std::mutex g_mutex;
+
+#ifdef __clang__
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wexit-time-destructors"
+#pragma clang diagnostic ignored "-Wglobal-constructors"
+#endif
 static std::string g_apptag;
+
+#ifdef __clang__
+#pragma clang diagnostic pop
+#endif
 
 #if defined(__ANDROID__) && !defined(NANOLOG_ANDROID_USE_STDIO)
 // Android logcat prints time, so no need to print time in nanolog messsage.
@@ -81,6 +91,11 @@ void set_apptag(const std::string &name) { g_apptag = name; }
 void set_printtime(bool enabled) {
   g_printtime = enabled;
 }
+
+#ifdef __clang__
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wformat-nonliteral"
+#endif
 
 #if !defined(NANOLOG_USE_FMTLIB)
 void log(int level, const char *file, const char *funcname, int line,
@@ -317,6 +332,10 @@ void log(int level, const char *file, const char *funcname, int line,
 #endif
   }
 }
+#endif
+
+#ifdef __clang__
+#pragma clang diagnostic pop
 #endif
 
 }  // namespace nanolog
