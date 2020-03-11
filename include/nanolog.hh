@@ -66,6 +66,7 @@ void set_printtime(bool enabled);
 
 #if !defined(NANOLOG_USE_FMTLIB)
 
+//
 // Limitation: when using pprintpp, zero or single argument is not allowed since
 // empty __VA_ARGS__ is invalid in strict manner. e.g. NANOLOG_INFO("hello")
 // gives an error
@@ -73,6 +74,26 @@ void set_printtime(bool enabled);
 // AUTOFORMAT in pprintpp.hpp failed to compile on msvc, so provide our own
 // portable one
 
+//
+// Suppress some compiler warnings as a work around
+//
+
+
+#ifdef __clang__
+#define NANOLOG_AUTOFORMAT(x, s, ...)                              \
+  _Pragma("clang diagnostic push") \
+  _Pragma("clang diagnostic ignored \"-Wnon-pod-varargs\"") \
+  _Pragma("clang diagnostic ignored \"-Wdouble-promotion\"") \
+  {                                                                \
+    struct strprov {                                               \
+      static constexpr const char *str() { return s; }             \
+    };                                                             \
+    using paramtypes = decltype(pprintpp::tie_types(__VA_ARGS__)); \
+    using af = pprintpp::autoformat_t<strprov, paramtypes>;        \
+    x = af::str();                                                 \
+  } \
+  _Pragma("clang diagnostic pop")
+#else
 #define NANOLOG_AUTOFORMAT(x, s, ...)                              \
   {                                                                \
     struct strprov {                                               \
@@ -82,6 +103,7 @@ void set_printtime(bool enabled);
     using af = pprintpp::autoformat_t<strprov, paramtypes>;        \
     x = af::str();                                                 \
   }
+#endif
 
 void log(int level, const char *filename, const char *funcname, int line,
          const char *formatted_str, ...);
@@ -108,7 +130,7 @@ void log(int level, const char *filename, const char *funcname, int line,
     NANOLOG_AUTOFORMAT(fmt, s, __VA_ARGS__)                         \
     nanolog::log(nanolog::kINFO, __FILE__, __func__, __LINE__, fmt, \
                  __VA_ARGS__);                                      \
-  } while (0)
+  } while (0) \
 
 #define NANOLOG_WARN(s, ...)                                        \
   do {                                                              \

@@ -31,6 +31,11 @@ int main(int argc, char **argv)
   nanolog::set_apptag("myapp");
 
   NANOLOG_INFO("{}", "start");
+  std::string hello;
+  NANOLOG_INFO("{}", hello.c_str());
+
+  float x = 3.13f;
+  NANOLOG_INFO("{}", x);
 
   NANOLOG_TRACE("argc {}, argv {s}", argc, argv[0]);
   NANOLOG_DEBUG("argc {}, argv {s}", argc, argv[0]);
