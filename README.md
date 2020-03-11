@@ -51,6 +51,15 @@ NANOLOG_INFO("hello");   // => error
 NANOLOG_INFO("{}", "hello"); // => ok
 ```
 
+Cannot specify `std::string` directly.
+
+```
+std::string str = "hello";
+NANOLOG_INFO("{}", str);   // => error
+
+NANOLOG_INFO("{}", str.c_str()); // => ok
+```
+
 ### fmtlib backend
 
 Add `nanolog/src/nanolog.cc`, `deps/fmt/src/format.cc` and `deps/fmt/src/posix.cc` to your project.
