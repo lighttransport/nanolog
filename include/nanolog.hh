@@ -78,7 +78,6 @@ void set_printtime(bool enabled);
 // Suppress some compiler warnings as a work around
 //
 
-
 #ifdef __clang__
 #define NANOLOG_AUTOFORMAT(x, s, ...)                              \
   _Pragma("clang diagnostic push") \
@@ -108,6 +107,19 @@ void set_printtime(bool enabled);
 void log(int level, const char *filename, const char *funcname, int line,
          const char *formatted_str, ...);
 
+#ifdef __clang__
+#define NANOLOG_TRACE(s, ...)                              \
+  _Pragma("clang diagnostic push") \
+  _Pragma("clang diagnostic ignored \"-Wnon-pod-varargs\"") \
+  _Pragma("clang diagnostic ignored \"-Wdouble-promotion\"") \
+  do {                                                               \
+    const char *fmt;                                                 \
+    NANOLOG_AUTOFORMAT(fmt, s, __VA_ARGS__)                          \
+    nanolog::log(nanolog::kTRACE, __FILE__, __func__, __LINE__, fmt, \
+                 __VA_ARGS__);                                       \
+  } while (0) \
+  _Pragma("clang diagnostic pop")
+#else
 #define NANOLOG_TRACE(s, ...)                                        \
   do {                                                               \
     const char *fmt;                                                 \
@@ -115,7 +127,21 @@ void log(int level, const char *filename, const char *funcname, int line,
     nanolog::log(nanolog::kTRACE, __FILE__, __func__, __LINE__, fmt, \
                  __VA_ARGS__);                                       \
   } while (0)
+#endif
 
+#ifdef __clang__
+#define NANOLOG_DEBUG(s, ...)                              \
+  _Pragma("clang diagnostic push") \
+  _Pragma("clang diagnostic ignored \"-Wnon-pod-varargs\"") \
+  _Pragma("clang diagnostic ignored \"-Wdouble-promotion\"") \
+  do {                                                               \
+    const char *fmt;                                                 \
+    NANOLOG_AUTOFORMAT(fmt, s, __VA_ARGS__)                          \
+    nanolog::log(nanolog::kDEBUG, __FILE__, __func__, __LINE__, fmt, \
+                 __VA_ARGS__);                                       \
+  } while (0) \
+  _Pragma("clang diagnostic pop")
+#else
 #define NANOLOG_DEBUG(s, ...)                                        \
   do {                                                               \
     const char *fmt;                                                 \
@@ -123,15 +149,43 @@ void log(int level, const char *filename, const char *funcname, int line,
     nanolog::log(nanolog::kDEBUG, __FILE__, __func__, __LINE__, fmt, \
                  __VA_ARGS__);                                       \
   } while (0)
+#endif
 
-#define NANOLOG_INFO(s, ...)                                        \
+#ifdef __clang__
+#define NANOLOG_INFO(s, ...)                              \
+  _Pragma("clang diagnostic push") \
+  _Pragma("clang diagnostic ignored \"-Wnon-pod-varargs\"") \
+  _Pragma("clang diagnostic ignored \"-Wdouble-promotion\"") \
   do {                                                              \
     const char *fmt;                                                \
     NANOLOG_AUTOFORMAT(fmt, s, __VA_ARGS__)                         \
     nanolog::log(nanolog::kINFO, __FILE__, __func__, __LINE__, fmt, \
                  __VA_ARGS__);                                      \
   } while (0) \
+  _Pragma("clang diagnostic pop")
+#else
+#define NANOLOG_INFO(s, ...)                                        \
+  do {                                                              \
+    const char *fmt;                                                \
+    NANOLOG_AUTOFORMAT(fmt, s, __VA_ARGS__)                         \
+    nanolog::log(nanolog::kINFO, __FILE__, __func__, __LINE__, fmt, \
+                 __VA_ARGS__);                                      \
+  } while (0)
+#endif
 
+#ifdef __clang__
+#define NANOLOG_WARN(s, ...)                              \
+  _Pragma("clang diagnostic push") \
+  _Pragma("clang diagnostic ignored \"-Wnon-pod-varargs\"") \
+  _Pragma("clang diagnostic ignored \"-Wdouble-promotion\"") \
+  do {                                                              \
+    const char *fmt;                                                \
+    NANOLOG_AUTOFORMAT(fmt, s, __VA_ARGS__)                         \
+    nanolog::log(nanolog::kWARN, __FILE__, __func__, __LINE__, fmt, \
+                 __VA_ARGS__);                                      \
+  } while (0) \
+  _Pragma("clang diagnostic pop")
+#else
 #define NANOLOG_WARN(s, ...)                                        \
   do {                                                              \
     const char *fmt;                                                \
@@ -139,7 +193,21 @@ void log(int level, const char *filename, const char *funcname, int line,
     nanolog::log(nanolog::kWARN, __FILE__, __func__, __LINE__, fmt, \
                  __VA_ARGS__);                                      \
   } while (0)
+#endif
 
+#ifdef __clang__
+#define NANOLOG_ERROR(s, ...)                              \
+  _Pragma("clang diagnostic push") \
+  _Pragma("clang diagnostic ignored \"-Wnon-pod-varargs\"") \
+  _Pragma("clang diagnostic ignored \"-Wdouble-promotion\"") \
+  do {                                                               \
+    const char *fmt;                                                 \
+    NANOLOG_AUTOFORMAT(fmt, s, __VA_ARGS__)                          \
+    nanolog::log(nanolog::kERROR, __FILE__, __func__, __LINE__, fmt, \
+                 __VA_ARGS__);                                       \
+  } while (0) \
+  _Pragma("clang diagnostic pop")
+#else
 #define NANOLOG_ERROR(s, ...)                                        \
   do {                                                               \
     const char *fmt;                                                 \
@@ -147,7 +215,21 @@ void log(int level, const char *filename, const char *funcname, int line,
     nanolog::log(nanolog::kERROR, __FILE__, __func__, __LINE__, fmt, \
                  __VA_ARGS__);                                       \
   } while (0)
+#endif
 
+#ifdef __clang__
+#define NANOLOG_FATAL(s, ...)                              \
+  _Pragma("clang diagnostic push") \
+  _Pragma("clang diagnostic ignored \"-Wnon-pod-varargs\"") \
+  _Pragma("clang diagnostic ignored \"-Wdouble-promotion\"") \
+  do {                                                               \
+    const char *fmt;                                                 \
+    NANOLOG_AUTOFORMAT(fmt, s, __VA_ARGS__)                          \
+    nanolog::log(nanolog::kFATAL, __FILE__, __func__, __LINE__, fmt, \
+                 __VA_ARGS__);                                       \
+  } while (0) \
+  _Pragma("clang diagnostic pop")
+#else
 #define NANOLOG_FATAL(s, ...)                                        \
   do {                                                               \
     const char *fmt;                                                 \
@@ -155,6 +237,7 @@ void log(int level, const char *filename, const char *funcname, int line,
     nanolog::log(nanolog::kFATAL, __FILE__, __func__, __LINE__, fmt, \
                  __VA_ARGS__);                                       \
   } while (0)
+#endif
 
 #else
 
