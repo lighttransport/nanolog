@@ -15,6 +15,7 @@
 #include <cstdarg>
 #include <cstring>  // for std::memmove
 #include <cwchar>
+#include <exception>
 
 #include "format.h"
 #if !defined(FMT_STATIC_THOUSANDS_SEPARATOR)
@@ -22,8 +23,14 @@
 #endif
 
 #ifdef _WIN32
+#  if defined(NOMINMAX)
+#    include <windows.h>
+#  else
+#    define NOMINMAX
+#    include <windows.h>
+#    undef NOMINMAX
+#  endif
 #  include <io.h>
-#  include <windows.h>
 #endif
 
 #ifdef _MSC_VER
@@ -33,15 +40,17 @@
 
 // Dummy implementations of strerror_r and strerror_s called if corresponding
 // system functions are not available.
-inline fmt::internal::null<> strerror_r(int, char*, ...) { return {}; }
-inline fmt::internal::null<> strerror_s(char*, std::size_t, ...) { return {}; }
+inline fmt::detail::null<> strerror_r(int, char*, ...) { return {}; }
+inline fmt::detail::null<> strerror_s(char*, size_t, ...) { return {}; }
 
 FMT_BEGIN_NAMESPACE
-namespace internal {
+namespace detail {
 
 FMT_FUNC void assert_fail(const char* file, int line, const char* message) {
   print(stderr, "{}:{}: assertion failed: {}", file, line, message);
-  std::abort();
+  // Chosen instead of std::abort to satisfy Clang in CUDA mode during device
+  // code pass.
+  std::terminate();
 }
 
 #ifndef _MSC_VER
@@ -67,14 +76,14 @@ inline int fmt_snprintf(char* buffer, size_t size, const char* format, ...) {
 //   other  - failure
 // Buffer should be at least of size 1.
 FMT_FUNC int safe_strerror(int error_code, char*& buffer,
-                           std::size_t buffer_size) FMT_NOEXCEPT {
+                           size_t buffer_size) FMT_NOEXCEPT {
   FMT_ASSERT(buffer != nullptr && buffer_size != 0, "invalid buffer");
 
   class dispatcher {
    private:
     int error_code_;
     char*& buffer_;
-    std::size_t buffer_size_;
+    size_t buffer_size_;
 
     // A noop assignment operator to avoid bogus warnings.
     void operator=(const dispatcher&) {}
@@ -86,6 +95,7 @@ FMT_FUNC int safe_strerror(int error_code, char*& buffer,
     }
 
     // Handle the result of GNU-specific version of strerror_r.
+    FMT_MAYBE_UNUSED
     int handle(char* message) {
       // If the buffer is full then the message is probably truncated.
       if (message == buffer_ && strlen(buffer_) == buffer_size_ - 1)
@@ -95,11 +105,13 @@ FMT_FUNC int safe_strerror(int error_code, char*& buffer,
     }
 
     // Handle the case when strerror_r is not available.
-    int handle(internal::null<>) {
+    FMT_MAYBE_UNUSED
+    int handle(detail::null<>) {
       return fallback(strerror_s(buffer_, buffer_size_, error_code_));
     }
 
     // Fallback to strerror_s when strerror_r is not available.
+    FMT_MAYBE_UNUSED
     int fallback(int result) {
       // If the buffer is full then the message is probably truncated.
       return result == 0 && strlen(buffer_) == buffer_size_ - 1 ? ERANGE
@@ -108,7 +120,7 @@ FMT_FUNC int safe_strerror(int error_code, char*& buffer,
 
 #if !FMT_MSC_VER
     // Fallback to strerror if strerror_r and strerror_s are not available.
-    int fallback(internal::null<>) {
+    int fallback(detail::null<>) {
       errno = 0;
       buffer_ = strerror(error_code_);
       return errno;
@@ -116,7 +128,7 @@ FMT_FUNC int safe_strerror(int error_code, char*& buffer,
 #endif
 
    public:
-    dispatcher(int err_code, char*& buf, std::size_t buf_size)
+    dispatcher(int err_code, char*& buf, size_t buf_size)
         : error_code_(err_code), buffer_(buf), buffer_size_(buf_size) {}
 
     int run() { return handle(strerror_r(error_code_, buffer_, buffer_size_)); }
@@ -124,7 +136,7 @@ FMT_FUNC int safe_strerror(int error_code, char*& buffer,
   return dispatcher(error_code, buffer, buffer_size).run();
 }
 
-FMT_FUNC void format_error_code(internal::buffer<char>& out, int error_code,
+FMT_FUNC void format_error_code(detail::buffer<char>& out, int error_code,
                                 string_view message) FMT_NOEXCEPT {
   // Report error code making sure that the output fits into
   // inline_buffer_size to avoid dynamic memory allocation and potential
@@ -133,20 +145,17 @@ FMT_FUNC void format_error_code(internal::buffer<char>& out, int error_code,
   static const char SEP[] = ": ";
   static const char ERROR_STR[] = "error ";
   // Subtract 2 to account for terminating null characters in SEP and ERROR_STR.
-  std::size_t error_code_size = sizeof(SEP) + sizeof(ERROR_STR) - 2;
+  size_t error_code_size = sizeof(SEP) + sizeof(ERROR_STR) - 2;
   auto abs_value = static_cast<uint32_or_64_or_128_t<int>>(error_code);
-  if (internal::is_negative(error_code)) {
+  if (detail::is_negative(error_code)) {
     abs_value = 0 - abs_value;
     ++error_code_size;
   }
-  error_code_size += internal::to_unsigned(internal::count_digits(abs_value));
-  internal::writer w(out);
-  if (message.size() <= inline_buffer_size - error_code_size) {
-    w.write(message);
-    w.write(SEP);
-  }
-  w.write(ERROR_STR);
-  w.write(error_code);
+  error_code_size += detail::to_unsigned(detail::count_digits(abs_value));
+  auto it = std::back_inserter(out);
+  if (message.size() <= inline_buffer_size - error_code_size)
+    format_to(it, "{}{}", message, SEP);
+  format_to(it, "{}{}", ERROR_STR, error_code);
   assert(out.size() <= inline_buffer_size);
 }
 
@@ -165,10 +174,10 @@ FMT_FUNC void fwrite_fully(const void* ptr, size_t size, size_t count,
   size_t written = std::fwrite(ptr, size, count, stream);
   if (written < count) FMT_THROW(system_error(errno, "cannot write to file"));
 }
-}  // namespace internal
+}  // namespace detail
 
 #if !defined(FMT_STATIC_THOUSANDS_SEPARATOR)
-namespace internal {
+namespace detail {
 
 template <typename Locale>
 locale_ref::locale_ref(const Locale& loc) : locale_(&loc) {
@@ -191,18 +200,16 @@ template <typename Char> FMT_FUNC Char decimal_point_impl(locale_ref loc) {
   return std::use_facet<std::numpunct<Char>>(loc.get<std::locale>())
       .decimal_point();
 }
-}  // namespace internal
+}  // namespace detail
 #else
 template <typename Char>
-FMT_FUNC std::string internal::grouping_impl(locale_ref) {
+FMT_FUNC std::string detail::grouping_impl(locale_ref) {
   return "\03";
 }
-template <typename Char>
-FMT_FUNC Char internal::thousands_sep_impl(locale_ref) {
+template <typename Char> FMT_FUNC Char detail::thousands_sep_impl(locale_ref) {
   return FMT_STATIC_THOUSANDS_SEPARATOR;
 }
-template <typename Char>
-FMT_FUNC Char internal::decimal_point_impl(locale_ref) {
+template <typename Char> FMT_FUNC Char detail::decimal_point_impl(locale_ref) {
   return '.';
 }
 #endif
@@ -219,9 +226,9 @@ FMT_FUNC void system_error::init(int err_code, string_view format_str,
   base = std::runtime_error(to_string(buffer));
 }
 
-namespace internal {
+namespace detail {
 
-template <> FMT_FUNC int count_digits<4>(internal::fallback_uintptr n) {
+template <> FMT_FUNC int count_digits<4>(detail::fallback_uintptr n) {
   // fallback_uintptr is always stored in little endian.
   int i = static_cast<int>(sizeof(void*)) - 1;
   while (i > 0 && n.value[i] == 0) --i;
@@ -314,6 +321,10 @@ const char basic_data<T>::background_color[] = "\x1b[48;2;";
 template <typename T> const char basic_data<T>::reset_color[] = "\x1b[0m";
 template <typename T> const wchar_t basic_data<T>::wreset_color[] = L"\x1b[0m";
 template <typename T> const char basic_data<T>::signs[] = {0, '-', '+', ' '};
+template <typename T>
+const char basic_data<T>::left_padding_shifts[] = {31, 31, 0, 1, 0};
+template <typename T>
+const char basic_data<T>::right_padding_shifts[] = {0, 31, 0, 1, 0};
 
 template <typename T> struct bits {
   static FMT_CONSTEXPR_DECL const int value =
@@ -336,6 +347,10 @@ class fp {
  private:
   using significand_type = uint64_t;
 
+ public:
+  significand_type f;
+  int e;
+
   // All sizes are in bits.
   // Subtract 1 to account for an implicit most significant bit in the
   // normalized form.
@@ -343,11 +358,6 @@ class fp {
       std::numeric_limits<double>::digits - 1;
   static FMT_CONSTEXPR_DECL const uint64_t implicit_bit =
       1ULL << double_significand_size;
-
- public:
-  significand_type f;
-  int e;
-
   static FMT_CONSTEXPR_DECL const int significand_size =
       bits<significand_type>::value;
 
@@ -357,22 +367,6 @@ class fp {
   // Constructs fp from an IEEE754 double. It is a template to prevent compile
   // errors on platforms where double is not IEEE754.
   template <typename Double> explicit fp(Double d) { assign(d); }
-
-  // Normalizes the value converted from double and multiplied by (1 << SHIFT).
-  template <int SHIFT> friend fp normalize(fp value) {
-    // Handle subnormals.
-    const auto shifted_implicit_bit = fp::implicit_bit << SHIFT;
-    while ((value.f & shifted_implicit_bit) == 0) {
-      value.f <<= 1;
-      --value.e;
-    }
-    // Subtract 1 to account for hidden bit.
-    const auto offset =
-        fp::significand_size - fp::double_significand_size - SHIFT - 1;
-    value.f <<= offset;
-    value.e -= offset;
-    return value;
-  }
 
   // Assigns d to this and return true iff predecessor is closer than successor.
   template <typename Double, FMT_ENABLE_IF(sizeof(Double) == sizeof(uint64_t))>
@@ -433,6 +427,22 @@ class fp {
     return boundaries{lower.f, upper.f};
   }
 };
+
+// Normalizes the value converted from double and multiplied by (1 << SHIFT).
+template <int SHIFT> fp normalize(fp value) {
+  // Handle subnormals.
+  const auto shifted_implicit_bit = fp::implicit_bit << SHIFT;
+  while ((value.f & shifted_implicit_bit) == 0) {
+    value.f <<= 1;
+    --value.e;
+  }
+  // Subtract 1 to account for hidden bit.
+  const auto offset =
+      fp::significand_size - fp::double_significand_size - SHIFT - 1;
+  value.f <<= offset;
+  value.e -= offset;
+  return value;
+}
 
 inline bool operator==(fp x, fp y) { return x.f == y.f && x.e == y.e; }
 
@@ -505,20 +515,23 @@ class bigint {
   basic_memory_buffer<bigit, bigits_capacity> bigits_;
   int exp_;
 
+  bigit operator[](int index) const { return bigits_[to_unsigned(index)]; }
+  bigit& operator[](int index) { return bigits_[to_unsigned(index)]; }
+
   static FMT_CONSTEXPR_DECL const int bigit_bits = bits<bigit>::value;
 
   friend struct formatter<bigint>;
 
   void subtract_bigits(int index, bigit other, bigit& borrow) {
-    auto result = static_cast<double_bigit>(bigits_[index]) - other - borrow;
-    bigits_[index] = static_cast<bigit>(result);
+    auto result = static_cast<double_bigit>((*this)[index]) - other - borrow;
+    (*this)[index] = static_cast<bigit>(result);
     borrow = static_cast<bigit>(result >> (bigit_bits * 2 - 1));
   }
 
   void remove_leading_zeros() {
     int num_bigits = static_cast<int>(bigits_.size()) - 1;
-    while (num_bigits > 0 && bigits_[num_bigits] == 0) --num_bigits;
-    bigits_.resize(num_bigits + 1);
+    while (num_bigits > 0 && (*this)[num_bigits] == 0) --num_bigits;
+    bigits_.resize(to_unsigned(num_bigits + 1));
   }
 
   // Computes *this -= other assuming aligned bigints and *this >= other.
@@ -527,8 +540,7 @@ class bigint {
     FMT_ASSERT(compare(*this, other) >= 0, "");
     bigit borrow = 0;
     int i = other.exp_ - exp_;
-    for (int j = 0, n = static_cast<int>(other.bigits_.size()); j != n;
-         ++i, ++j) {
+    for (size_t j = 0, n = other.bigits_.size(); j != n; ++i, ++j) {
       subtract_bigits(i, other.bigits_[j], borrow);
     }
     while (borrow > 0) subtract_bigits(i, 0, borrow);
@@ -579,7 +591,7 @@ class bigint {
   }
 
   void assign(uint64_t n) {
-    int num_bigits = 0;
+    size_t num_bigits = 0;
     do {
       bigits_[num_bigits++] = n & ~bigit(0);
       n >>= bigit_bits;
@@ -590,7 +602,7 @@ class bigint {
 
   int num_bigits() const { return static_cast<int>(bigits_.size()) + exp_; }
 
-  bigint& operator<<=(int shift) {
+  FMT_NOINLINE bigint& operator<<=(int shift) {
     assert(shift >= 0);
     exp_ += shift / bigit_bits;
     shift %= bigit_bits;
@@ -620,7 +632,7 @@ class bigint {
     int end = i - j;
     if (end < 0) end = 0;
     for (; i >= end; --i, --j) {
-      bigit lhs_bigit = lhs.bigits_[i], rhs_bigit = rhs.bigits_[j];
+      bigit lhs_bigit = lhs[i], rhs_bigit = rhs[j];
       if (lhs_bigit != rhs_bigit) return lhs_bigit > rhs_bigit ? 1 : -1;
     }
     if (i != j) return i > j ? 1 : -1;
@@ -635,7 +647,7 @@ class bigint {
     if (max_lhs_bigits + 1 < num_rhs_bigits) return -1;
     if (max_lhs_bigits > num_rhs_bigits) return 1;
     auto get_bigit = [](const bigint& n, int i) -> bigit {
-      return i >= n.exp_ && i < n.num_bigits() ? n.bigits_[i - n.exp_] : 0;
+      return i >= n.exp_ && i < n.num_bigits() ? n[i - n.exp_] : 0;
     };
     double_bigit borrow = 0;
     int min_exp = (std::min)((std::min)(lhs1.exp_, lhs2.exp_), rhs.exp_);
@@ -675,7 +687,7 @@ class bigint {
     basic_memory_buffer<bigit, bigits_capacity> n(std::move(bigits_));
     int num_bigits = static_cast<int>(bigits_.size());
     int num_result_bigits = 2 * num_bigits;
-    bigits_.resize(num_result_bigits);
+    bigits_.resize(to_unsigned(num_result_bigits));
     using accumulator_t = conditional_t<FMT_USE_INT128, uint128_t, accumulator>;
     auto sum = accumulator_t();
     for (int bigit_index = 0; bigit_index < num_bigits; ++bigit_index) {
@@ -685,7 +697,7 @@ class bigint {
         // Most terms are multiplied twice which can be optimized in the future.
         sum += static_cast<double_bigit>(n[i]) * n[j];
       }
-      bigits_[bigit_index] = static_cast<bigit>(sum);
+      (*this)[bigit_index] = static_cast<bigit>(sum);
       sum >>= bits<bigit>::value;  // Compute the carry.
     }
     // Do the same for the top half.
@@ -693,7 +705,7 @@ class bigint {
          ++bigit_index) {
       for (int j = num_bigits - 1, i = bigit_index - j; i < num_bigits;)
         sum += static_cast<double_bigit>(n[i++]) * n[j--];
-      bigits_[bigit_index] = static_cast<bigit>(sum);
+      (*this)[bigit_index] = static_cast<bigit>(sum);
       sum >>= bits<bigit>::value;
     }
     --num_result_bigits;
@@ -707,11 +719,11 @@ class bigint {
     FMT_ASSERT(this != &divisor, "");
     if (compare(*this, divisor) < 0) return 0;
     int num_bigits = static_cast<int>(bigits_.size());
-    FMT_ASSERT(divisor.bigits_[divisor.bigits_.size() - 1] != 0, "");
+    FMT_ASSERT(divisor.bigits_[divisor.bigits_.size() - 1u] != 0, "");
     int exp_difference = exp_ - divisor.exp_;
     if (exp_difference > 0) {
       // Align bigints by adding trailing zeros to simplify subtraction.
-      bigits_.resize(num_bigits + exp_difference);
+      bigits_.resize(to_unsigned(num_bigits + exp_difference));
       for (int i = num_bigits - 1, j = i + exp_difference; i >= 0; --i, --j)
         bigits_[j] = bigits_[i];
       std::uninitialized_fill_n(bigits_.data(), exp_difference, 0);
@@ -757,7 +769,7 @@ enum result {
 }
 
 // A version of count_digits optimized for grisu_gen_digits.
-inline unsigned grisu_count_digits(uint32_t n) {
+inline int grisu_count_digits(uint32_t n) {
   if (n < 10) return 1;
   if (n < 100) return 2;
   if (n < 1000) return 3;
@@ -1022,7 +1034,7 @@ void fallback_format(Double d, buffer<char>& buf, int& exp10) {
         if (result > 0 || (result == 0 && (digit % 2) != 0))
           ++data[num_digits - 1];
       }
-      buf.resize(num_digits);
+      buf.resize(to_unsigned(num_digits));
       exp10 -= num_digits - 1;
       return;
     }
@@ -1141,13 +1153,14 @@ int snprintf_float(T value, int precision, float_specs specs,
   for (;;) {
     auto begin = buf.data() + offset;
     auto capacity = buf.capacity() - offset;
-#ifdef FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION
+#ifdef FMT_FUZZ
     if (precision > 100000)
       throw std::runtime_error(
           "fuzz mode - avoid large allocation inside snprintf");
 #endif
     // Suppress the warning about a nonliteral format string.
-    auto snprintf_ptr = FMT_SNPRINTF;
+    // Cannot use auto becase of a bug in MinGW (#1532).
+    int (*snprintf_ptr)(char*, size_t, const char*, ...) = FMT_SNPRINTF;
     int result = precision >= 0
                      ? snprintf_ptr(begin, capacity, format, precision, value)
                      : snprintf_ptr(begin, capacity, format, value);
@@ -1155,7 +1168,7 @@ int snprintf_float(T value, int precision, float_specs specs,
       buf.reserve(buf.capacity() + 1);  // The buffer will grow exponentially.
       continue;
     }
-    unsigned size = to_unsigned(result);
+    auto size = to_unsigned(result);
     // Size equal to capacity means that the last character was truncated.
     if (size >= capacity) {
       buf.reserve(size + offset + 1);  // Add 1 for the terminating '\0'.
@@ -1173,7 +1186,7 @@ int snprintf_float(T value, int precision, float_specs specs,
         --p;
       } while (is_digit(*p));
       int fraction_size = static_cast<int>(end - p - 1);
-      std::memmove(p, p + 1, fraction_size);
+      std::memmove(p, p + 1, to_unsigned(fraction_size));
       buf.resize(size - 1);
       return -fraction_size;
     }
@@ -1202,9 +1215,9 @@ int snprintf_float(T value, int precision, float_specs specs,
       while (*fraction_end == '0') --fraction_end;
       // Move the fractional part left to get rid of the decimal point.
       fraction_size = static_cast<int>(fraction_end - begin - 1);
-      std::memmove(begin + 1, begin + 2, fraction_size);
+      std::memmove(begin + 1, begin + 2, to_unsigned(fraction_size));
     }
-    buf.resize(fraction_size + offset + 1);
+    buf.resize(to_unsigned(fraction_size) + offset + 1);
     return exp - fraction_size;
   }
 }
@@ -1263,19 +1276,19 @@ FMT_FUNC const char* utf8_decode(const char* buf, uint32_t* c, int* e) {
 
   return next;
 }
-}  // namespace internal
+}  // namespace detail
 
-template <> struct formatter<internal::bigint> {
+template <> struct formatter<detail::bigint> {
   format_parse_context::iterator parse(format_parse_context& ctx) {
     return ctx.begin();
   }
 
-  format_context::iterator format(const internal::bigint& n,
+  format_context::iterator format(const detail::bigint& n,
                                   format_context& ctx) {
     auto out = ctx.out();
     bool first = true;
     for (auto i = n.bigits_.size(); i > 0; --i) {
-      auto value = n.bigits_[i - 1];
+      auto value = n.bigits_[i - 1u];
       if (first) {
         out = format_to(out, "{:x}", value);
         first = false;
@@ -1284,12 +1297,12 @@ template <> struct formatter<internal::bigint> {
       out = format_to(out, "{:08x}", value);
     }
     if (n.exp_ > 0)
-      out = format_to(out, "p{}", n.exp_ * internal::bigint::bigit_bits);
+      out = format_to(out, "p{}", n.exp_ * detail::bigint::bigit_bits);
     return out;
   }
 };
 
-FMT_FUNC internal::utf8_to_utf16::utf8_to_utf16(string_view s) {
+FMT_FUNC detail::utf8_to_utf16::utf8_to_utf16(string_view s) {
   auto transcode = [this](const char* p) {
     auto cp = uint32_t();
     auto error = 0;
@@ -1311,7 +1324,7 @@ FMT_FUNC internal::utf8_to_utf16::utf8_to_utf16(string_view s) {
   }
   if (auto num_chars_left = s.data() + s.size() - p) {
     char buf[2 * block_size - 1] = {};
-    memcpy(buf, p, num_chars_left);
+    memcpy(buf, p, to_unsigned(num_chars_left));
     p = buf;
     do {
       p = transcode(p);
@@ -1320,7 +1333,7 @@ FMT_FUNC internal::utf8_to_utf16::utf8_to_utf16(string_view s) {
   buffer_.push_back(0);
 }
 
-FMT_FUNC void format_system_error(internal::buffer<char>& out, int error_code,
+FMT_FUNC void format_system_error(detail::buffer<char>& out, int error_code,
                                   string_view message) FMT_NOEXCEPT {
   FMT_TRY {
     memory_buffer buf;
@@ -1328,12 +1341,9 @@ FMT_FUNC void format_system_error(internal::buffer<char>& out, int error_code,
     for (;;) {
       char* system_message = &buf[0];
       int result =
-          internal::safe_strerror(error_code, system_message, buf.size());
+          detail::safe_strerror(error_code, system_message, buf.size());
       if (result == 0) {
-        internal::writer w(out);
-        w.write(message);
-        w.write(": ");
-        w.write(system_message);
+        format_to(std::back_inserter(out), "{}: {}", message, system_message);
         return;
       }
       if (result != ERANGE)
@@ -1345,7 +1355,7 @@ FMT_FUNC void format_system_error(internal::buffer<char>& out, int error_code,
   format_error_code(out, error_code, message);
 }
 
-FMT_FUNC void internal::error_handler::on_error(const char* message) {
+FMT_FUNC void detail::error_handler::on_error(const char* message) {
   FMT_THROW(format_error(message));
 }
 
@@ -1356,31 +1366,31 @@ FMT_FUNC void report_system_error(int error_code,
 
 FMT_FUNC void vprint(std::FILE* f, string_view format_str, format_args args) {
   memory_buffer buffer;
-  internal::vformat_to(buffer, format_str,
-                       basic_format_args<buffer_context<char>>(args));
+  detail::vformat_to(buffer, format_str,
+                     basic_format_args<buffer_context<char>>(args));
 #ifdef _WIN32
   auto fd = _fileno(f);
   if (_isatty(fd)) {
-    internal::utf8_to_utf16 u16(string_view(buffer.data(), buffer.size()));
+    detail::utf8_to_utf16 u16(string_view(buffer.data(), buffer.size()));
     auto written = DWORD();
     if (!WriteConsoleW(reinterpret_cast<HANDLE>(_get_osfhandle(fd)),
                        u16.c_str(), static_cast<DWORD>(u16.size()), &written,
                        nullptr)) {
-      throw format_error("failed to write to console");
+      FMT_THROW(format_error("failed to write to console"));
     }
     return;
   }
 #endif
-  internal::fwrite_fully(buffer.data(), 1, buffer.size(), f);
+  detail::fwrite_fully(buffer.data(), 1, buffer.size(), f);
 }
 
 #ifdef _WIN32
 // Print assuming legacy (non-Unicode) encoding.
-FMT_FUNC void internal::vprint_mojibake(std::FILE* f, string_view format_str,
-                                        format_args args) {
+FMT_FUNC void detail::vprint_mojibake(std::FILE* f, string_view format_str,
+                                      format_args args) {
   memory_buffer buffer;
-  internal::vformat_to(buffer, format_str,
-                       basic_format_args<buffer_context<char>>(args));
+  detail::vformat_to(buffer, format_str,
+                     basic_format_args<buffer_context<char>>(args));
   fwrite_fully(buffer.data(), 1, buffer.size(), f);
 }
 #endif
