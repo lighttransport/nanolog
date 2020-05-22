@@ -1,6 +1,18 @@
 #include "nanolog.hh"
 
 #include <thread>
+#include <cstdio>
+
+// Workaround for macro expansionin MSVC
+// https://stackoverflow.com/questions/5134523/msvc-doesnt-expand-va-args-correctly
+#define EXPAND(x) x
+#define MY_ASSERT(cond, ...) \
+{ \
+  if (!(cond)) {           \
+    EXPAND(NANOLOG_FATAL(__VA_ARGS__)); \
+    abort(); \
+  } \
+}
 
 static void logger1()
 {
@@ -29,6 +41,8 @@ int main(int argc, char **argv)
 
   nanolog::set_level(nanolog::kTRACE);
   nanolog::set_apptag("myapp");
+
+  MY_ASSERT(argc < 16, "argc must be less than 16, but got {}", "muda");
 
   NANOLOG_INFO("{}", "start");
   std::string hello;
