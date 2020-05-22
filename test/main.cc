@@ -7,12 +7,12 @@
 // https://stackoverflow.com/questions/5134523/msvc-doesnt-expand-va-args-correctly
 #define EXPAND(x) x
 #define MY_ASSERT(cond, ...) \
-{ \
+do { \
   if (!(cond)) {           \
     EXPAND(NANOLOG_FATAL(__VA_ARGS__)); \
     abort(); \
   } \
-}
+} while(0)
 
 static void logger1()
 {
