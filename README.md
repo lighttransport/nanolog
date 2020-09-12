@@ -1,17 +1,18 @@
 # nanolog, Nanoscale logging library in C++11
 
 nanolog is a simple, portable and nanoscale logging library in C++11.
-nanolog uses `pprintpp`(default) or `fmtlib` for Python-like formatted logging(`{}`).
+nanolog uses `pprintpp`(default) or `fmtlib` for supporting Python-like format string(`{}`).
 
 ## Features
 
 * Faster compilation time. nanolog itself uses very small amount of template code.
   * Default uses `pprintpp` backend, which is fast to compile than `fmtlib`.
+    * But has many limitations(see the `Limitation` section in the below)
     * Using `pprintpp` is rougly 3x ~ 10x faster compile than `fmtlib`(when `-O2` optimization enabled)
   * fmtlib backend is also provided.
 * Thread-safe. nanolog logging is a thread-safe.
 
-nanolog is good if you want faster C++11 compile time, but don't need absolute performance of logging output.
+nanolog is good if you want faster C++11 compile time but don't need absolute performance of logging output.
 e.g. graphics, raytracing, machine learning application. An application where text logging is important for data loading/saving, but non-text debugging is primarily used in its primary task.
 
 ## Supported platform
