@@ -181,7 +181,7 @@ template <typename Char> class printf_width_handler {
 template <typename Char, typename Context>
 void vprintf(buffer<Char>& buf, basic_string_view<Char> format,
              basic_format_args<Context> args) {
-  Context(std::back_inserter(buf), format, args).format();
+  Context(buffer_appender<Char>(buf), format, args).format();
 }
 }  // namespace detail
 
@@ -194,8 +194,6 @@ FMT_DEPRECATED void printf(detail::buffer<Char>& buf,
 }
 using detail::vprintf;
 
-template <typename Range> class printf_arg_formatter;
-
 template <typename Char>
 class basic_printf_parse_context : public basic_format_parse_context<Char> {
   using basic_format_parse_context<Char>::basic_format_parse_context;
@@ -207,15 +205,15 @@ template <typename OutputIt, typename Char> class basic_printf_context;
   The ``printf`` argument formatter.
   \endrst
  */
-template <typename Range>
-class printf_arg_formatter : public detail::arg_formatter_base<Range> {
+template <typename OutputIt, typename Char>
+class printf_arg_formatter : public detail::arg_formatter_base<OutputIt, Char> {
  public:
-  using iterator = typename Range::iterator;
+  using iterator = OutputIt;
 
  private:
-  using char_type = typename Range::value_type;
-  using base = detail::arg_formatter_base<Range>;
-  using context_type = basic_printf_context<iterator, char_type>;
+  using char_type = Char;
+  using base = detail::arg_formatter_base<OutputIt, Char>;
+  using context_type = basic_printf_context<OutputIt, Char>;
 
   context_type& context_;
 
@@ -240,7 +238,7 @@ class printf_arg_formatter : public detail::arg_formatter_base<Range> {
     \endrst
    */
   printf_arg_formatter(iterator iter, format_specs& specs, context_type& ctx)
-      : base(Range(iter), &specs, detail::locale_ref()), context_(ctx) {}
+      : base(iter, &specs, detail::locale_ref()), context_(ctx) {}
 
   template <typename T, FMT_ENABLE_IF(fmt::detail::is_integral<T>::value)>
   iterator operator()(T value) {
@@ -257,6 +255,7 @@ class printf_arg_formatter : public detail::arg_formatter_base<Range> {
         return (*this)(static_cast<int>(value));
       fmt_specs.sign = sign::none;
       fmt_specs.alt = false;
+      fmt_specs.fill[0] = ' ';  // Ignore '0' flag for char types.
       // align::numeric needs to be overwritten here since the '0' flag is
       // ignored for non-numeric types
       if (fmt_specs.align == align::none || fmt_specs.align == align::numeric)
@@ -385,7 +384,7 @@ template <typename OutputIt, typename Char> class basic_printf_context {
   }
 
   /** Formats stored arguments and writes the output to the range. */
-  template <typename ArgFormatter = printf_arg_formatter<buffer_range<Char>>>
+  template <typename ArgFormatter = printf_arg_formatter<OutputIt, Char>>
   OutputIt format();
 };
 
@@ -508,6 +507,11 @@ OutputIt basic_printf_context<OutputIt, Char>::format() {
     }
 
     format_arg arg = get_arg(arg_index);
+    // For d, i, o, u, x, and X conversion specifiers, if a precision is
+    // specified, the '0' flag is ignored
+    if (specs.precision >= 0 && arg.is_integral())
+      specs.fill[0] =
+          ' ';  // Ignore '0' flag for non-numeric types or if '-' present.
     if (specs.precision >= 0 && arg.type() == detail::type::cstring_type) {
       auto str = visit_format_arg(detail::get_cstring<Char>(), arg);
       auto str_end = str + specs.precision;
@@ -587,14 +591,14 @@ OutputIt basic_printf_context<OutputIt, Char>::format() {
     start = it;
 
     // Format argument.
-    visit_format_arg(ArgFormatter(out, specs, *this), arg);
+    out = visit_format_arg(ArgFormatter(out, specs, *this), arg);
   }
   return std::copy(start, it, out);
 }
 
 template <typename Char>
 using basic_printf_context_t =
-    basic_printf_context<std::back_insert_iterator<detail::buffer<Char>>, Char>;
+    basic_printf_context<detail::buffer_appender<Char>, Char>;
 
 using printf_context = basic_printf_context_t<char>;
 using wprintf_context = basic_printf_context_t<wchar_t>;
@@ -710,7 +714,7 @@ inline int vfprintf(
     basic_format_args<basic_printf_context_t<type_identity_t<Char>>> args) {
   basic_memory_buffer<Char> buffer;
   vprintf(buffer, to_string_view(format), args);
-  detail::write(os, buffer);
+  detail::write_buffer(os, buffer);
   return static_cast<int>(buffer.size());
 }
 
