@@ -4,7 +4,7 @@ set(TEST_TARGET "test_nanolog")
 
 project(${TEST_TARGET})
 
-option(NANOLOG_USE_FMTLIB "Use fmtlib instead of pprintpp(pprintpp is fast to compile, but less feature than fmtlib)" OFF)
+option(NANOLOG_USE_FMTLIB "Use fmtlib instead of pprintpp(pprintpp is fast to compile, but less feature than fmtlib)" ON)
 option(NANOLOG_ANDROID_USE_STDIO "Print logs to stdout(For Android)" OFF)
 
 set(CMAKE_CXX_STANDARD 11)
