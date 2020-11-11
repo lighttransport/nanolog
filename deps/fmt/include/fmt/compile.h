@@ -175,9 +175,9 @@ class format_string_compiler : public error_handler {
     repl.arg_id = part_.part_kind == part::kind::arg_index
                       ? arg_ref<Char>(part_.val.arg_index)
                       : arg_ref<Char>(part_.val.str);
-    auto part = part::make_replacement(repl);
-    part.arg_id_end = begin;
-    handler_(part);
+    auto replacement_part = part::make_replacement(repl);
+    replacement_part.arg_id_end = begin;
+    handler_(replacement_part);
     return it;
   }
 };
@@ -444,7 +444,8 @@ template <typename Char, typename T, int N> struct spec_field {
   OutputIt format(OutputIt out, const Args&... args) const {
     // This ensures that the argument type is convertile to `const T&`.
     const T& arg = get<N>(args...);
-    const auto& vargs = make_format_args(args...);
+    const auto& vargs =
+        make_format_args<basic_format_context<OutputIt, Char>>(args...);
     basic_format_context<OutputIt, Char> ctx(out, vargs);
     return fmt.format(arg, ctx);
   }
@@ -529,14 +530,14 @@ constexpr auto compile_format_string(S format_str) {
     if constexpr (str[POS + 1] == '{') {
       return parse_tail<Args, POS + 2, ID>(make_text(str, POS, 1), format_str);
     } else if constexpr (str[POS + 1] == '}') {
-      using type = get_type<ID, Args>;
-      return parse_tail<Args, POS + 2, ID + 1>(field<char_type, type, ID>(),
+      using id_type = get_type<ID, Args>;
+      return parse_tail<Args, POS + 2, ID + 1>(field<char_type, id_type, ID>(),
                                                format_str);
     } else if constexpr (str[POS + 1] == ':') {
-      using type = get_type<ID, Args>;
-      constexpr auto result = parse_specs<type>(str, POS + 2, ID);
+      using id_type = get_type<ID, Args>;
+      constexpr auto result = parse_specs<id_type>(str, POS + 2, ID);
       return parse_tail<Args, result.end, result.next_arg_id>(
-          spec_field<char_type, type, ID>{result.fmt}, format_str);
+          spec_field<char_type, id_type, ID>{result.fmt}, format_str);
     } else {
       return unknown_format();
     }
@@ -637,9 +638,13 @@ template <typename S, typename... Args,
           FMT_ENABLE_IF(detail::is_compiled_string<S>::value)>
 FMT_INLINE std::basic_string<typename S::char_type> format(const S&,
                                                            Args&&... args) {
-  constexpr basic_string_view<typename S::char_type> str = S();
-  if (str.size() == 2 && str[0] == '{' && str[1] == '}')
-    return fmt::to_string(detail::first(args...));
+#ifdef __cpp_if_constexpr
+  if constexpr (std::is_same<typename S::char_type, char>::value) {
+    constexpr basic_string_view<typename S::char_type> str = S();
+    if (str.size() == 2 && str[0] == '{' && str[1] == '}')
+      return fmt::to_string(detail::first(args...));
+  }
+#endif
   constexpr auto compiled = detail::compile<Args...>(S());
   return format(compiled, std::forward<Args>(args)...);
 }
@@ -662,15 +667,27 @@ OutputIt format_to(OutputIt out, const S&, const Args&... args) {
   return format_to(out, compiled, args...);
 }
 
-template <
-    typename OutputIt, typename CompiledFormat, typename... Args,
-    FMT_ENABLE_IF(detail::is_output_iterator<OutputIt>::value&& std::is_base_of<
-                  detail::basic_compiled_format, CompiledFormat>::value)>
-format_to_n_result<OutputIt> format_to_n(OutputIt out, size_t n,
-                                         const CompiledFormat& cf,
-                                         const Args&... args) {
+template <typename OutputIt, typename CompiledFormat, typename... Args>
+auto format_to_n(OutputIt out, size_t n, const CompiledFormat& cf,
+                 const Args&... args) ->
+    typename std::enable_if<
+        detail::is_output_iterator<OutputIt,
+                                   typename CompiledFormat::char_type>::value &&
+            std::is_base_of<detail::basic_compiled_format,
+                            CompiledFormat>::value,
+        format_to_n_result<OutputIt>>::type {
   auto it =
       format_to(detail::truncating_iterator<OutputIt>(out, n), cf, args...);
+  return {it.base(), it.count()};
+}
+
+template <typename OutputIt, typename S, typename... Args,
+          FMT_ENABLE_IF(detail::is_compiled_string<S>::value)>
+format_to_n_result<OutputIt> format_to_n(OutputIt out, size_t n, const S&,
+                                         const Args&... args) {
+  constexpr auto compiled = detail::compile<Args...>(S());
+  auto it = format_to(detail::truncating_iterator<OutputIt>(out, n), compiled,
+                      args...);
   return {it.base(), it.count()};
 }
 

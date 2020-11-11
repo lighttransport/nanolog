@@ -363,8 +363,8 @@ struct ostream_params {
   ostream_params() {}
 
   template <typename... T>
-  ostream_params(T... params, int oflag) : ostream_params(params...) {
-    this->oflag = oflag;
+  ostream_params(T... params, int new_oflag) : ostream_params(params...) {
+    oflag = new_oflag;
   }
 
   template <typename... T>
@@ -378,7 +378,7 @@ struct ostream_params {
 static constexpr detail::buffer_size buffer_size;
 
 // A fast output stream which is not thread-safe.
-class ostream : private detail::buffer<char> {
+class ostream final : private detail::buffer<char> {
  private:
   file file_;
 
@@ -388,7 +388,7 @@ class ostream : private detail::buffer<char> {
     clear();
   }
 
-  void grow(size_t) final;
+  void grow(size_t) override final;
 
   ostream(cstring_view path, const detail::ostream_params& params)
       : file_(path, params.oflag) {
