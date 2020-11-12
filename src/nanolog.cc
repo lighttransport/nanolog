@@ -414,8 +414,6 @@ void LogMsg::emit() {
   // `std::localtime` may not be thread safe, so take a lock before calling it.
   std::lock_guard<std::mutex> lock(g_mutex);
 
-  std::time_t tm = std::time(nullptr);
-
   std::string date_header;
 
   // datetime

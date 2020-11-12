@@ -106,6 +106,9 @@ int main(int argc, char **argv)
 
   // internal can use `std::string` argument
   NANOLOG_INFO("hello: {}", hello);
+
+  // zero-arg log is supported.
+  NANOLOG_INFO("world");
 #endif
 
   {
