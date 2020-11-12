@@ -6,9 +6,10 @@ nanolog uses `pprintpp`(default) or `fmtlib` for supporting Python-like format s
 ## Features
 
 * Faster compilation time. nanolog itself uses very small amount of template code.
-  * Default uses `pprintpp` backend, which is fast to compile than `fmtlib`.
-    * But has many limitations(see the `Limitation` section in the below)
-    * Using `pprintpp` is rougly 3x ~ 10x faster compile than `fmtlib`(when `-O2` optimization enabled)
+  * Default uses `internal`(nodep) backend(no dependency except for STL)
+    * `pprintpp` and `fmtlib` backend provided.
+    * Using `pprintpp` backend is rougly 3x ~ 10x faster compile than `fmtlib` backend(when `-O2` optimization enabled)
+    * But `pprintpp` has many limitations(see the `Limitation` section in the below)
   * fmtlib backend is also provided.
 * Thread-safe. nanolog logging is a thread-safe.
 
@@ -47,7 +48,7 @@ There are three backends
 * `NANOLOG_USE_FMTLIB` fmt
   * Feature ritch, compile time type check and log formatting.
 
-### Internal backend
+### Internal backend(nodep)
 
 Internal backend only uses STL, no dependent libraries required to add your project.
 
