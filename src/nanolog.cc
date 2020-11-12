@@ -434,7 +434,9 @@ void LogMsg::emit() {
     date_header = "[DATE_UNKNOWN] ";
   }
 #else
-  std::localtime_s(&t, &tmbuf);
+  // TODO: Try to use localtime_s with __STDC_LIB_EXT1__
+  // https://en.cppreference.com/w/c/chrono/localtime
+  tmbuf = *std::localtime(&t);
 
   if (strftime(buf, sizeof buf, "[%Y-%m-%d %H:%M:%S] ", &tmbuf)) {
     date_header = std::string(buf, strlen(buf));
