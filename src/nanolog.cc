@@ -33,9 +33,14 @@ SOFTWARE.
 #include "fmt/chrono.h"
 #include "fmt/core.h"
 
-#else
+#elif defined(NANOLOG_USE_PPRINTPP)
 
 #include "pprintpp.hpp"
+
+#else
+
+#include <iostream>
+#include <cstring>
 
 #endif
 
@@ -46,9 +51,9 @@ SOFTWARE.
 #include <atomic>
 #include <cstdarg>
 #include <ctime>
+#include <iomanip>  // std::put_time
 #include <mutex>
 #include <sstream>
-#include <iomanip> // std::put_time
 
 #if !defined(NANOLOG_NO_EXCEPTION_AT_FATAL)
 #include <stdexcept>
@@ -88,19 +93,16 @@ void set_color(bool enabled) { g_color = enabled; }
 
 void set_apptag(const std::string &name) { g_apptag = name; }
 
-void set_printtime(bool enabled) {
-  g_printtime = enabled;
-}
+void set_printtime(bool enabled) { g_printtime = enabled; }
 
 #ifdef __clang__
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wformat-nonliteral"
 #endif
 
-#if !defined(NANOLOG_USE_FMTLIB)
+#if defined(NANOLOG_USE_PPRINTPP)
 void log(int level, const char *file, const char *funcname, int line,
          const char *formatted_str, ...) {
-
   if (level < g_level) {
     return;
   }
@@ -135,7 +137,8 @@ void log(int level, const char *file, const char *funcname, int line,
   }
 
   std::string log_fmt;
-  std::string header = "[" + lv_str + "] [" + file + ":" + funcname  + ":" + std::to_string(line) + "] ";
+  std::string header = "[" + lv_str + "] [" + file + ":" + funcname + ":" +
+                       std::to_string(line) + "] ";
 
 #if defined(__ANDROID__) && !defined(NANOLOG_ANDROID_USE_STDIO)
 
@@ -176,10 +179,10 @@ void log(int level, const char *file, const char *funcname, int line,
   std::string tag = g_apptag.empty() ? "nanolog" : g_apptag;
 
   va_list args;
-  va_start (args, formatted_str);
+  va_start(args, formatted_str);
   // it looks Android logging is thread safe, so do not use the lock
   __android_log_vprint(priority, tag.c_str(), log_fmt.c_str(), args);
-  va_end (args);
+  va_end(args);
 
 #else
 
@@ -206,14 +209,14 @@ void log(int level, const char *file, const char *funcname, int line,
   log_fmt += std::string(formatted_str) + '\n';
 
   va_list args;
-  va_start (args, formatted_str);
+  va_start(args, formatted_str);
 
   {
     std::lock_guard<std::mutex> lock(g_mutex);
     vprintf(log_fmt.c_str(), args);
   }
 
-  va_end (args);
+  va_end(args);
 #endif
 
   if (level == kFATAL) {
@@ -222,10 +225,9 @@ void log(int level, const char *file, const char *funcname, int line,
 #endif
   }
 }
-#else
+#elif defined(NANOLOG_USE_FMTLIB)
 void log(int level, const char *file, const char *funcname, int line,
          const char *fmt_str, fmt::format_args args) {
-
   if (level < g_level) {
     return;
   }
@@ -240,8 +242,7 @@ void log(int level, const char *file, const char *funcname, int line,
   std::string date_header =
       fmt::format("[{:%Y-%m-%d %H:%M:%S}] ", *std::localtime(&tm));
 
-  std::string header =
-      fmt::format("[{}:{}:{}] ", file, funcname, line);
+  std::string header = fmt::format("[{}:{}:{}] ", file, funcname, line);
   log_fmt += date_header + header;
 
   log_fmt += std::string(fmt_str);
@@ -310,7 +311,8 @@ void log(int level, const char *file, const char *funcname, int line,
   std::string date_header =
       fmt::format("[{:%Y-%m-%d %H:%M:%S}] ", *std::localtime(&tm));
 
-  std::string header = fmt::format("[{}] [{}:{}:{}] ", lv_str, file, funcname, line);
+  std::string header =
+      fmt::format("[{}] [{}:{}:{}] ", lv_str, file, funcname, line);
   if (!g_apptag.empty()) {
     log_fmt += "[" + g_apptag + "] ";
   }
@@ -332,6 +334,114 @@ void log(int level, const char *file, const char *funcname, int line,
 #endif
   }
 }
+#else
+
+void LogMsg::emit() {
+  // TODO: Support Android
+
+  if (_level < g_level) {
+    return;
+  }
+
+  std::string str(_msg);
+
+  // find the number of occurences of `{}`
+  // https://stackoverflow.com/questions/4034750/find-all-a-substrings-occurrences-and-locations
+  std::vector<size_t> positions;
+  size_t pos = str.find("{}", 0);
+  while (pos != std::string::npos) {
+    positions.push_back(pos);
+    pos = str.find("{}", pos + 1);
+  }
+
+  // std::vector<std::string> toks = split_string(_msg, "{}");
+
+  if (positions.size() != arg_strs.size()) {
+    std::stringstream ss;
+
+    ss << "Mismatch in the number of arguments! " << positions.size()
+              << " for `{}` and " << arg_strs.size() << " for args. [" << _fname
+              << ":" << _funname << ":" << _line << "]\n";
+    // Argument mismatch
+
+#if defined(__ANDROID__) && !defined(NANOLOG_ANDROID_USE_STDIO)
+    std::string tag = g_apptag.empty() ? "nanolog" : g_apptag;
+
+    __android_log_print(ANDROID_LOG_ERROR, tag.c_str(), "%s", ss.str().c_str());
+#else
+    std::cerr << ss.str();
+#endif
+    return;
+  }
+
+  // replace string from the end to the beginning so that we don't need to
+  // adjust the location in `positions`.
+  size_t n = positions.size();
+  for (size_t i = 0; i < n; i++) {
+    str.replace(positions[n - i - 1], /* strlen("{}") */ 2,
+                arg_strs[n - i - 1]);
+  }
+
+  std::string lv_str;
+  if (_level == kTRACE) {
+    lv_str = "trace";
+  } else if (_level == kDEBUG) {
+    lv_str = "debug";
+  } else if (_level == kINFO) {
+    lv_str = "info";
+  } else if (_level == kWARN) {
+    if (g_color) {
+      lv_str = "\033[33mwarn\033[m";
+    } else {
+      lv_str = "warn";
+    }
+  } else if (_level == kERROR) {
+    if (g_color) {
+      lv_str = "\033[31merror\033[m";
+    } else {
+      lv_str = "error";
+    }
+  } else if (_level == kFATAL) {
+    if (g_color) {
+      lv_str = "\033[31m\033[1mfatal\033[m";
+    } else {
+      lv_str = "fatal";
+    }
+  } else {
+    lv_str = "UNKNOWN";
+  }
+
+  std::time_t tm = std::time(nullptr);
+
+  std::string date_header;
+
+  // datetime
+  char buf[64];
+  // TODO: check the return value of strftime.
+  if (strftime(buf, sizeof buf, "[%Y-%m-%d %H:%M:%S] ", std::localtime(&tm))) {
+    date_header = std::string(buf, strlen(buf));
+  } else {
+    date_header = "[DATE_UNKNOWN] ";
+    // ???
+  }
+
+  std::string log_fmt;
+
+  if (!g_apptag.empty()) {
+    log_fmt += "[" + g_apptag + "] ";
+  }
+
+  log_fmt += date_header + "[" + lv_str + ":" + _fname + ":" + _funname + ":" + std::to_string(_line) + "] ";
+
+  log_fmt += str;
+
+  {
+    std::lock_guard<std::mutex> lock(g_mutex);
+    printf("%s\n", log_fmt.c_str());
+  }
+}
+
+// internal
 #endif
 
 #ifdef __clang__

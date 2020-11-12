@@ -40,10 +40,14 @@ SOFTWARE.
 
 #endif
 
-#else
+#elif NANOLOG_USE_PPRINTPP
 
 #include "pprintpp.hpp"
 
+#else
+// internal
+#include <sstream>
+#include <vector>
 #endif
 
 #ifdef __clang__
@@ -64,7 +68,7 @@ void set_apptag(const std::string &apptag);
 // platform. Disabling print time may give faster logging)
 void set_printtime(bool enabled);
 
-#if !defined(NANOLOG_USE_FMTLIB)
+#if defined(NANOLOG_USE_PPRINTPP)
 
 //
 // Limitation: when using pprintpp, zero or single argument is not allowed since
@@ -239,7 +243,7 @@ void log(int level, const char *filename, const char *funcname, int line,
   } while (0)
 #endif
 
-#else
+#elif defined(NANOLOG_USE_FMTLIB)
 
 void log(int level, const char *filename, const char *funcname, int line,
          const char *fmt, fmt::format_args args);
@@ -286,7 +290,101 @@ void logger(int level, const char *filename, const char *funcname, int line,
                     __VA_ARGS__);                                  \
   } while (0)
 
-#endif  // NANOLOG_USE_FMTLIB
+#else
+
+// internal
+
+class LogMsg
+{
+ public:
+  LogMsg(enum loglevel level, const char *fname, const char *funname, int line)
+    : _level(level), _fname(fname), _funname(funname), _line(line) {
+  }
+
+  void log() noexcept {
+  }
+
+  template<typename T, typename ... Args>
+  void log(T head, Args ... rest) noexcept {
+    std::stringstream ss;
+    ss << head;
+    arg_strs.push_back(ss.str());
+
+    log(rest...);
+  }
+
+  void fmt(const char *msg) {
+
+    _msg = msg;
+  }
+
+  void emit();
+
+ private:
+  LogMsg() = delete;
+  LogMsg(const LogMsg &other) = delete;
+  LogMsg &operator=(const LogMsg &other) = delete;
+
+  enum loglevel _level;
+  std::string _fname;
+  std::string _funname;
+  int _line;
+  std::string _msg;
+
+  std::vector<std::string> arg_strs;
+
+};
+
+#define NANOLOG_TRACE(s, ...)                                      \
+  do {                                                             \
+    nanolog::LogMsg msg(nanolog::kTRACE, __FILE__, __func__, __LINE__);     \
+    msg.fmt(s); \
+    msg.log(__VA_ARGS__); \
+    msg.emit(); \
+  } while (0)
+
+#define NANOLOG_INFO(s, ...)                                      \
+  do {                                                             \
+    nanolog::LogMsg msg(nanolog::kINFO, __FILE__, __func__, __LINE__);     \
+    msg.fmt(s); \
+    msg.log(__VA_ARGS__); \
+    msg.emit(); \
+  } while (0)
+
+#define NANOLOG_DEBUG(s, ...)                                      \
+  do {                                                             \
+    nanolog::LogMsg msg(nanolog::kDEBUG, __FILE__, __func__, __LINE__);     \
+    msg.fmt(s); \
+    msg.log(__VA_ARGS__); \
+    msg.emit(); \
+  } while (0)
+
+#define NANOLOG_WARN(s, ...)                                      \
+  do {                                                             \
+    nanolog::LogMsg msg(nanolog::kWARN, __FILE__, __func__, __LINE__);     \
+    msg.fmt(s); \
+    msg.log(__VA_ARGS__); \
+    msg.emit(); \
+  } while (0)
+
+#define NANOLOG_ERROR(s, ...)                                      \
+  do {                                                             \
+    nanolog::LogMsg msg(nanolog::kERROR, __FILE__, __func__, __LINE__);     \
+    msg.fmt(s); \
+    msg.log(__VA_ARGS__); \
+    msg.emit(); \
+  } while (0)
+
+#define NANOLOG_FATAL(s, ...)                                      \
+  do {                                                             \
+    nanolog::LogMsg msg(nanolog::kFATAL, __FILE__, __func__, __LINE__);     \
+    msg.fmt(s); \
+    msg.log(__VA_ARGS__); \
+    msg.emit(); \
+  } while (0)
+
+#endif
+
 
 }  // namespace nanolog
 

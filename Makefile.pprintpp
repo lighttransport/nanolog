@@ -1,0 +1,14 @@
+# pprintpp backend
+#
+CXXFLAGS=-DNANOLOG_USE_PPRINTPP -g -O2 -Wall -Werror -std=c++11 -Wno-c++98-compat -Wno-c++98-compat-pedantic
+
+all: nanolog.o
+	g++ $(CXXFLAGS) -o run_test -Ideps/pprintpp/include -Iinclude test/main.cc nanolog.o -pthread
+
+nanolog.o: src/nanolog.cc
+	g++ $(CXXFLAGS) -c -Ideps/pprintpp/include -Iinclude src/nanolog.cc
+
+.PHONY: clean
+
+clean:
+	rm nanolog.o run_test
