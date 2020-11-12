@@ -4,7 +4,9 @@ set(TEST_TARGET "test_nanolog")
 
 project(${TEST_TARGET})
 
-option(NANOLOG_USE_FMTLIB "Use fmtlib instead of pprintpp(pprintpp is fast to compile, but less feature than fmtlib)" ON)
+# default: Use internal backend(fast to compile, limited log formatting)
+option(NANOLOG_USE_FMTLIB "Use fmtlib(feature rich)" OFF)
+option(NANOLOG_USE_PPRINTPP "Use pprintpp backend(faster to compile than fmtlib, but has some limitation in log formattring)" OFF)
 option(NANOLOG_ANDROID_USE_STDIO "Print logs to stdout(For Android)" OFF)
 
 set(CMAKE_CXX_STANDARD 11)
@@ -38,9 +40,13 @@ if (NANOLOG_USE_FMTLIB)
   target_compile_definitions(${TEST_TARGET} PRIVATE NANOLOG_USE_FMTLIB)
   target_include_directories(${TEST_TARGET} PRIVATE ${PROJECT_SOURCE_DIR}/include
     ${PROJECT_SOURCE_DIR}/deps/fmt/include)
-else (NANOLOG_USE_FMTLIB)
+elseif (NANOLOG_USE_PPRINTPP)
+  target_compile_definitions(${TEST_TARGET} PRIVATE NANOLOG_USE_PPRINTPP)
   target_include_directories(${TEST_TARGET} PRIVATE ${PROJECT_SOURCE_DIR}/include
     ${PROJECT_SOURCE_DIR}/deps/pprintpp/include)
+else ()
+  target_include_directories(${TEST_TARGET} PRIVATE ${PROJECT_SOURCE_DIR}/include
+    )
 endif (NANOLOG_USE_FMTLIB)
 
 if (ANDROID)
