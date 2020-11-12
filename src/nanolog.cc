@@ -411,19 +411,40 @@ void LogMsg::emit() {
     lv_str = "UNKNOWN";
   }
 
+  // `std::localtime` may not be thread safe, so take a lock before calling it.
+  std::lock_guard<std::mutex> lock(g_mutex);
+
   std::time_t tm = std::time(nullptr);
 
   std::string date_header;
 
   // datetime
   char buf[64];
-  // TODO: check the return value of strftime.
-  if (strftime(buf, sizeof buf, "[%Y-%m-%d %H:%M:%S] ", std::localtime(&tm))) {
+
+  std::time_t t = std::time(nullptr);
+  struct tm tmbuf;
+#ifdef _MSC_VER
+  // MS CRT has different function signature compared to the C11 standard
+  errno_t tmerr = localtime_s(&tmbuf, &t);
+  if (tmerr != 0) {
+    date_header = "[DATE_ERROR] ";
+  } else if (strftime(buf, sizeof buf, "[%Y-%m-%d %H:%M:%S] ", &tmbuf)) {
+    date_header = std::string(buf, strlen(buf));
+  } else {
+    date_header = "[DATE_UNKNOWN] ";
+  }
+#else
+  std::localtime_s(&t, &tmbuf);
+
+  if (strftime(buf, sizeof buf, "[%Y-%m-%d %H:%M:%S] ", &tmbuf)) {
     date_header = std::string(buf, strlen(buf));
   } else {
     date_header = "[DATE_UNKNOWN] ";
     // ???
   }
+
+#endif
+
 
   std::string log_fmt;
 
@@ -435,10 +456,7 @@ void LogMsg::emit() {
 
   log_fmt += str;
 
-  {
-    std::lock_guard<std::mutex> lock(g_mutex);
-    printf("%s\n", log_fmt.c_str());
-  }
+  printf("%s\n", log_fmt.c_str());
 }
 
 // internal
