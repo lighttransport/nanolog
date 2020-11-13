@@ -14,6 +14,15 @@ void func(...) {
   printf("aaa\n");
 }
 
+#define COMMON_CODE(n) \
+  bool reached{false}; \
+  static int64_t counter = 0; \
+  static std::mutex _mtx; \
+  _mtx.lock(); \
+  counter++; \
+  if (counter > (n)) { reached = true; } \
+  _mtx.unlock();
+
 #define BORA(s, ...) { \
   func(s, __VA_ARGS__); \
 }
@@ -141,13 +150,7 @@ class Msg
 
 // Only print the log `n` times.
 #define MYFUN_N(n, s, ...) do { \
-  bool reached{false}; \
-  static int64_t counter = 0; \
-  static std::mutex _mtx; \
-  _mtx.lock(); \
-  counter++; \
-  if (counter > n) { reached = true; } \
-  _mtx.unlock(); \
+  COMMON_CODE(n); \
   struct strprv { \
     static constexpr const char *str() { return s; }; \
   }; \
@@ -158,24 +161,33 @@ class Msg
   } \
 } while(0)
 
+//
 // Do not prit log within `msec` milliseconds after the last time of this log was printed.
+//
+
 #define MYFUN_MS(msecs, s, ...) do { \
   bool suppressed{false}; \
+  static int64_t nsuppressed{0}; \
   static std::chrono::time_point<std::chrono::system_clock> last_time(std::chrono::system_clock::from_time_t({})); \
   static std::mutex _mtx; \
   _mtx.lock(); \
   auto curr = std::chrono::system_clock::now(); \
   auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(curr - last_time).count(); \
-  if (elapsed < msecs) { suppressed = true ; } else { last_time = curr; } \
-  _mtx.unlock(); \
+  if (elapsed < msecs) { suppressed = true ; nsuppressed++; } else { last_time = curr; } \
   struct strprv { \
     static constexpr const char *str() { return s; }; \
   }; \
   if (!suppressed) { \
+    std::string suppstr = "(Suppressed " + std::to_string(nsuppressed) + " messages)"; \
+    Msg suppmsg(__FILE__, __func__, __LINE__); suppmsg.fmt(suppstr.c_str()); \
+    suppmsg.flush(); \
+    nsuppressed = 0; \
     Msg msg(__FILE__, __func__, __LINE__); msg.fmt(strprv::str()); \
     msg.log_arg(__VA_ARGS__); \
     msg.flush(); \
   } \
+  /* TODO(LTE): Narrow critical section */ \
+  _mtx.unlock(); \
 } while(0)
 
 //inline int log_all() noexcept {

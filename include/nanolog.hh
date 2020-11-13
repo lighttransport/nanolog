@@ -46,7 +46,11 @@ SOFTWARE.
 
 #else
 // internal
+#include <atomic>
+#include <chrono>
+#include <mutex>
 #include <sstream>
+#include <thread>
 #include <vector>
 #endif
 
@@ -83,18 +87,17 @@ void set_printtime(bool enabled);
 //
 
 #ifdef __clang__
-#define NANOLOG_AUTOFORMAT(x, s, ...)                              \
-  _Pragma("clang diagnostic push") \
-  _Pragma("clang diagnostic ignored \"-Wnon-pod-varargs\"") \
-  _Pragma("clang diagnostic ignored \"-Wdouble-promotion\"") \
-  {                                                                \
-    struct strprov {                                               \
-      static constexpr const char *str() { return s; }             \
-    };                                                             \
-    using paramtypes = decltype(pprintpp::tie_types(__VA_ARGS__)); \
-    using af = pprintpp::autoformat_t<strprov, paramtypes>;        \
-    x = af::str();                                                 \
-  } \
+#define NANOLOG_AUTOFORMAT(x, s, ...)                                  \
+  _Pragma("clang diagnostic push")                                     \
+      _Pragma("clang diagnostic ignored \"-Wnon-pod-varargs\"")        \
+          _Pragma("clang diagnostic ignored \"-Wdouble-promotion\"") { \
+    struct strprov {                                                   \
+      static constexpr const char *str() { return s; }                 \
+    };                                                                 \
+    using paramtypes = decltype(pprintpp::tie_types(__VA_ARGS__));     \
+    using af = pprintpp::autoformat_t<strprov, paramtypes>;            \
+    x = af::str();                                                     \
+  }                                                                    \
   _Pragma("clang diagnostic pop")
 #else
 #define NANOLOG_AUTOFORMAT(x, s, ...)                              \
@@ -112,17 +115,16 @@ void log(int level, const char *filename, const char *funcname, int line,
          const char *formatted_str, ...);
 
 #ifdef __clang__
-#define NANOLOG_TRACE(s, ...)                              \
-  _Pragma("clang diagnostic push") \
-  _Pragma("clang diagnostic ignored \"-Wnon-pod-varargs\"") \
-  _Pragma("clang diagnostic ignored \"-Wdouble-promotion\"") \
-  do {                                                               \
-    const char *fmt;                                                 \
-    NANOLOG_AUTOFORMAT(fmt, s, __VA_ARGS__)                          \
-    nanolog::log(nanolog::kTRACE, __FILE__, __func__, __LINE__, fmt, \
-                 __VA_ARGS__);                                       \
-  } while (0) \
-  _Pragma("clang diagnostic pop")
+#define NANOLOG_TRACE(s, ...)                                             \
+  _Pragma("clang diagnostic push")                                        \
+      _Pragma("clang diagnostic ignored \"-Wnon-pod-varargs\"")           \
+          _Pragma("clang diagnostic ignored \"-Wdouble-promotion\"") do { \
+    const char *fmt;                                                      \
+    NANOLOG_AUTOFORMAT(fmt, s, __VA_ARGS__)                               \
+    nanolog::log(nanolog::kTRACE, __FILE__, __func__, __LINE__, fmt,      \
+                 __VA_ARGS__);                                            \
+  }                                                                       \
+  while (0) _Pragma("clang diagnostic pop")
 #else
 #define NANOLOG_TRACE(s, ...)                                        \
   do {                                                               \
@@ -134,17 +136,16 @@ void log(int level, const char *filename, const char *funcname, int line,
 #endif
 
 #ifdef __clang__
-#define NANOLOG_DEBUG(s, ...)                              \
-  _Pragma("clang diagnostic push") \
-  _Pragma("clang diagnostic ignored \"-Wnon-pod-varargs\"") \
-  _Pragma("clang diagnostic ignored \"-Wdouble-promotion\"") \
-  do {                                                               \
-    const char *fmt;                                                 \
-    NANOLOG_AUTOFORMAT(fmt, s, __VA_ARGS__)                          \
-    nanolog::log(nanolog::kDEBUG, __FILE__, __func__, __LINE__, fmt, \
-                 __VA_ARGS__);                                       \
-  } while (0) \
-  _Pragma("clang diagnostic pop")
+#define NANOLOG_DEBUG(s, ...)                                             \
+  _Pragma("clang diagnostic push")                                        \
+      _Pragma("clang diagnostic ignored \"-Wnon-pod-varargs\"")           \
+          _Pragma("clang diagnostic ignored \"-Wdouble-promotion\"") do { \
+    const char *fmt;                                                      \
+    NANOLOG_AUTOFORMAT(fmt, s, __VA_ARGS__)                               \
+    nanolog::log(nanolog::kDEBUG, __FILE__, __func__, __LINE__, fmt,      \
+                 __VA_ARGS__);                                            \
+  }                                                                       \
+  while (0) _Pragma("clang diagnostic pop")
 #else
 #define NANOLOG_DEBUG(s, ...)                                        \
   do {                                                               \
@@ -156,17 +157,16 @@ void log(int level, const char *filename, const char *funcname, int line,
 #endif
 
 #ifdef __clang__
-#define NANOLOG_INFO(s, ...)                              \
-  _Pragma("clang diagnostic push") \
-  _Pragma("clang diagnostic ignored \"-Wnon-pod-varargs\"") \
-  _Pragma("clang diagnostic ignored \"-Wdouble-promotion\"") \
-  do {                                                              \
-    const char *fmt;                                                \
-    NANOLOG_AUTOFORMAT(fmt, s, __VA_ARGS__)                         \
-    nanolog::log(nanolog::kINFO, __FILE__, __func__, __LINE__, fmt, \
-                 __VA_ARGS__);                                      \
-  } while (0) \
-  _Pragma("clang diagnostic pop")
+#define NANOLOG_INFO(s, ...)                                              \
+  _Pragma("clang diagnostic push")                                        \
+      _Pragma("clang diagnostic ignored \"-Wnon-pod-varargs\"")           \
+          _Pragma("clang diagnostic ignored \"-Wdouble-promotion\"") do { \
+    const char *fmt;                                                      \
+    NANOLOG_AUTOFORMAT(fmt, s, __VA_ARGS__)                               \
+    nanolog::log(nanolog::kINFO, __FILE__, __func__, __LINE__, fmt,       \
+                 __VA_ARGS__);                                            \
+  }                                                                       \
+  while (0) _Pragma("clang diagnostic pop")
 #else
 #define NANOLOG_INFO(s, ...)                                        \
   do {                                                              \
@@ -178,17 +178,16 @@ void log(int level, const char *filename, const char *funcname, int line,
 #endif
 
 #ifdef __clang__
-#define NANOLOG_WARN(s, ...)                              \
-  _Pragma("clang diagnostic push") \
-  _Pragma("clang diagnostic ignored \"-Wnon-pod-varargs\"") \
-  _Pragma("clang diagnostic ignored \"-Wdouble-promotion\"") \
-  do {                                                              \
-    const char *fmt;                                                \
-    NANOLOG_AUTOFORMAT(fmt, s, __VA_ARGS__)                         \
-    nanolog::log(nanolog::kWARN, __FILE__, __func__, __LINE__, fmt, \
-                 __VA_ARGS__);                                      \
-  } while (0) \
-  _Pragma("clang diagnostic pop")
+#define NANOLOG_WARN(s, ...)                                              \
+  _Pragma("clang diagnostic push")                                        \
+      _Pragma("clang diagnostic ignored \"-Wnon-pod-varargs\"")           \
+          _Pragma("clang diagnostic ignored \"-Wdouble-promotion\"") do { \
+    const char *fmt;                                                      \
+    NANOLOG_AUTOFORMAT(fmt, s, __VA_ARGS__)                               \
+    nanolog::log(nanolog::kWARN, __FILE__, __func__, __LINE__, fmt,       \
+                 __VA_ARGS__);                                            \
+  }                                                                       \
+  while (0) _Pragma("clang diagnostic pop")
 #else
 #define NANOLOG_WARN(s, ...)                                        \
   do {                                                              \
@@ -200,17 +199,16 @@ void log(int level, const char *filename, const char *funcname, int line,
 #endif
 
 #ifdef __clang__
-#define NANOLOG_ERROR(s, ...)                              \
-  _Pragma("clang diagnostic push") \
-  _Pragma("clang diagnostic ignored \"-Wnon-pod-varargs\"") \
-  _Pragma("clang diagnostic ignored \"-Wdouble-promotion\"") \
-  do {                                                               \
-    const char *fmt;                                                 \
-    NANOLOG_AUTOFORMAT(fmt, s, __VA_ARGS__)                          \
-    nanolog::log(nanolog::kERROR, __FILE__, __func__, __LINE__, fmt, \
-                 __VA_ARGS__);                                       \
-  } while (0) \
-  _Pragma("clang diagnostic pop")
+#define NANOLOG_ERROR(s, ...)                                             \
+  _Pragma("clang diagnostic push")                                        \
+      _Pragma("clang diagnostic ignored \"-Wnon-pod-varargs\"")           \
+          _Pragma("clang diagnostic ignored \"-Wdouble-promotion\"") do { \
+    const char *fmt;                                                      \
+    NANOLOG_AUTOFORMAT(fmt, s, __VA_ARGS__)                               \
+    nanolog::log(nanolog::kERROR, __FILE__, __func__, __LINE__, fmt,      \
+                 __VA_ARGS__);                                            \
+  }                                                                       \
+  while (0) _Pragma("clang diagnostic pop")
 #else
 #define NANOLOG_ERROR(s, ...)                                        \
   do {                                                               \
@@ -222,17 +220,16 @@ void log(int level, const char *filename, const char *funcname, int line,
 #endif
 
 #ifdef __clang__
-#define NANOLOG_FATAL(s, ...)                              \
-  _Pragma("clang diagnostic push") \
-  _Pragma("clang diagnostic ignored \"-Wnon-pod-varargs\"") \
-  _Pragma("clang diagnostic ignored \"-Wdouble-promotion\"") \
-  do {                                                               \
-    const char *fmt;                                                 \
-    NANOLOG_AUTOFORMAT(fmt, s, __VA_ARGS__)                          \
-    nanolog::log(nanolog::kFATAL, __FILE__, __func__, __LINE__, fmt, \
-                 __VA_ARGS__);                                       \
-  } while (0) \
-  _Pragma("clang diagnostic pop")
+#define NANOLOG_FATAL(s, ...)                                             \
+  _Pragma("clang diagnostic push")                                        \
+      _Pragma("clang diagnostic ignored \"-Wnon-pod-varargs\"")           \
+          _Pragma("clang diagnostic ignored \"-Wdouble-promotion\"") do { \
+    const char *fmt;                                                      \
+    NANOLOG_AUTOFORMAT(fmt, s, __VA_ARGS__)                               \
+    nanolog::log(nanolog::kFATAL, __FILE__, __func__, __LINE__, fmt,      \
+                 __VA_ARGS__);                                            \
+  }                                                                       \
+  while (0) _Pragma("clang diagnostic pop")
 #else
 #define NANOLOG_FATAL(s, ...)                                        \
   do {                                                               \
@@ -293,19 +290,16 @@ void logger(int level, const char *filename, const char *funcname, int line,
 #else
 
 // internal
-
-class LogMsg
-{
+// To handle empty __VA_ARGS__, use variadic template to consume __VA_ARGS__.
+class LogMsg {
  public:
   LogMsg(enum loglevel level, const char *fname, const char *funname, int line)
-    : _level(level), _fname(fname), _funname(funname), _line(line) {
-  }
+      : _level(level), _fname(fname), _funname(funname), _line(line) {}
 
-  void log() noexcept {
-  }
+  void log() noexcept {}
 
-  template<typename T, typename ... Args>
-  void log(T head, Args ... rest) noexcept {
+  template <typename T, typename... Args>
+  void log(T head, Args... rest) noexcept {
     std::stringstream ss;
     ss << head;
     arg_strs.push_back(ss.str());
@@ -313,10 +307,7 @@ class LogMsg
     log(rest...);
   }
 
-  void fmt(const char *msg) {
-
-    _msg = msg;
-  }
+  void fmt(const char *msg) { _msg = msg; }
 
   void emit();
 
@@ -332,59 +323,384 @@ class LogMsg
   std::string _msg;
 
   std::vector<std::string> arg_strs;
-
 };
 
-#define NANOLOG_TRACE(s, ...)                                      \
-  do {                                                             \
-    nanolog::LogMsg msg(nanolog::kTRACE, __FILE__, __func__, __LINE__);     \
-    msg.fmt(s); \
-    msg.log(__VA_ARGS__); \
-    msg.emit(); \
+#define NANOLOG_TRACE(s, ...)                                           \
+  do {                                                                  \
+    nanolog::LogMsg msg(nanolog::kTRACE, __FILE__, __func__, __LINE__); \
+    msg.fmt(s);                                                         \
+    msg.log(__VA_ARGS__);                                               \
+    msg.emit();                                                         \
   } while (0)
 
-#define NANOLOG_INFO(s, ...)                                      \
-  do {                                                             \
-    nanolog::LogMsg msg(nanolog::kINFO, __FILE__, __func__, __LINE__);     \
-    msg.fmt(s); \
-    msg.log(__VA_ARGS__); \
-    msg.emit(); \
+#define NANOLOG_INFO(s, ...)                                           \
+  do {                                                                 \
+    nanolog::LogMsg msg(nanolog::kINFO, __FILE__, __func__, __LINE__); \
+    msg.fmt(s);                                                        \
+    msg.log(__VA_ARGS__);                                              \
+    msg.emit();                                                        \
   } while (0)
 
-#define NANOLOG_DEBUG(s, ...)                                      \
-  do {                                                             \
-    nanolog::LogMsg msg(nanolog::kDEBUG, __FILE__, __func__, __LINE__);     \
-    msg.fmt(s); \
-    msg.log(__VA_ARGS__); \
-    msg.emit(); \
+#define NANOLOG_DEBUG(s, ...)                                           \
+  do {                                                                  \
+    nanolog::LogMsg msg(nanolog::kDEBUG, __FILE__, __func__, __LINE__); \
+    msg.fmt(s);                                                         \
+    msg.log(__VA_ARGS__);                                               \
+    msg.emit();                                                         \
   } while (0)
 
-#define NANOLOG_WARN(s, ...)                                      \
-  do {                                                             \
-    nanolog::LogMsg msg(nanolog::kWARN, __FILE__, __func__, __LINE__);     \
-    msg.fmt(s); \
-    msg.log(__VA_ARGS__); \
-    msg.emit(); \
+#define NANOLOG_WARN(s, ...)                                           \
+  do {                                                                 \
+    nanolog::LogMsg msg(nanolog::kWARN, __FILE__, __func__, __LINE__); \
+    msg.fmt(s);                                                        \
+    msg.log(__VA_ARGS__);                                              \
+    msg.emit();                                                        \
   } while (0)
 
-#define NANOLOG_ERROR(s, ...)                                      \
-  do {                                                             \
-    nanolog::LogMsg msg(nanolog::kERROR, __FILE__, __func__, __LINE__);     \
-    msg.fmt(s); \
-    msg.log(__VA_ARGS__); \
-    msg.emit(); \
+#define NANOLOG_ERROR(s, ...)                                           \
+  do {                                                                  \
+    nanolog::LogMsg msg(nanolog::kERROR, __FILE__, __func__, __LINE__); \
+    msg.fmt(s);                                                         \
+    msg.log(__VA_ARGS__);                                               \
+    msg.emit();                                                         \
   } while (0)
 
-#define NANOLOG_FATAL(s, ...)                                      \
-  do {                                                             \
-    nanolog::LogMsg msg(nanolog::kFATAL, __FILE__, __func__, __LINE__);     \
-    msg.fmt(s); \
-    msg.log(__VA_ARGS__); \
-    msg.emit(); \
+#define NANOLOG_FATAL(s, ...)                                           \
+  do {                                                                  \
+    nanolog::LogMsg msg(nanolog::kFATAL, __FILE__, __func__, __LINE__); \
+    msg.fmt(s);                                                         \
+    msg.log(__VA_ARGS__);                                               \
+    msg.emit();                                                         \
+  } while (0)
+
+//
+// Print log up to `n` times.
+//
+
+#define NANOLOG_TRACE_N(n, s, ...)                                        \
+  do {                                                                    \
+    bool reached{false};                                                  \
+    static int64_t counter = 0;                                           \
+    static std::mutex _mtx;                                               \
+    _mtx.lock();                                                          \
+    counter++;                                                            \
+    if (counter > n) {                                                    \
+      reached = true;                                                     \
+    }                                                                     \
+    _mtx.unlock();                                                        \
+    if (!reached) {                                                       \
+      nanolog::LogMsg msg(nanolog::kTRACE, __FILE__, __func__, __LINE__); \
+      msg.fmt(s);                                                         \
+      msg.log(__VA_ARGS__);                                               \
+      msg.emit();                                                         \
+    }                                                                     \
+  } while (0)
+
+#define NANOLOG_INFO_N(n, s, ...)                                        \
+  do {                                                                   \
+    bool reached{false};                                                 \
+    static int64_t counter = 0;                                          \
+    static std::mutex _mtx;                                              \
+    _mtx.lock();                                                         \
+    counter++;                                                           \
+    if (counter > n) {                                                   \
+      reached = true;                                                    \
+    }                                                                    \
+    _mtx.unlock();                                                       \
+    if (!reached) {                                                      \
+      nanolog::LogMsg msg(nanolog::kINFO, __FILE__, __func__, __LINE__); \
+      msg.fmt(s);                                                        \
+      msg.log(__VA_ARGS__);                                              \
+      msg.emit();                                                        \
+    }                                                                    \
+  } while (0)
+
+#define NANOLOG_DEBUG_N(n, s, ...)                                        \
+  do {                                                                    \
+    bool reached{false};                                                  \
+    static int64_t counter = 0;                                           \
+    static std::mutex _mtx;                                               \
+    _mtx.lock();                                                          \
+    counter++;                                                            \
+    if (counter > n) {                                                    \
+      reached = true;                                                     \
+    }                                                                     \
+    _mtx.unlock();                                                        \
+    if (!reached) {                                                       \
+      nanolog::LogMsg msg(nanolog::kDEBUG, __FILE__, __func__, __LINE__); \
+      msg.fmt(s);                                                         \
+      msg.log(__VA_ARGS__);                                               \
+      msg.emit();                                                         \
+    }                                                                     \
+  } while (0)
+
+#define NANOLOG_WARN_N(n, s, ...)                                        \
+  do {                                                                   \
+    bool reached{false};                                                 \
+    static int64_t counter = 0;                                          \
+    static std::mutex _mtx;                                              \
+    _mtx.lock();                                                         \
+    counter++;                                                           \
+    if (counter > n) {                                                   \
+      reached = true;                                                    \
+    }                                                                    \
+    _mtx.unlock();                                                       \
+    if (!reached) {                                                      \
+      nanolog::LogMsg msg(nanolog::kWARN, __FILE__, __func__, __LINE__); \
+      msg.fmt(s);                                                        \
+      msg.log(__VA_ARGS__);                                              \
+      msg.emit();                                                        \
+    }                                                                    \
+  } while (0)
+
+#define NANOLOG_ERROR_N(n, s, ...)                                        \
+  do {                                                                    \
+    bool reached{false};                                                  \
+    static int64_t counter = 0;                                           \
+    static std::mutex _mtx;                                               \
+    _mtx.lock();                                                          \
+    counter++;                                                            \
+    if (counter > n) {                                                    \
+      reached = true;                                                     \
+    }                                                                     \
+    _mtx.unlock();                                                        \
+    if (!reached) {                                                       \
+      nanolog::LogMsg msg(nanolog::kERROR, __FILE__, __func__, __LINE__); \
+      msg.fmt(s);                                                         \
+      msg.log(__VA_ARGS__);                                               \
+      msg.emit();                                                         \
+    }                                                                     \
+  } while (0)
+
+#define NANOLOG_FATAL_N(n, s, ...)                                        \
+  do {                                                                    \
+    bool reached{false};                                                  \
+    static int64_t counter = 0;                                           \
+    static std::mutex _mtx;                                               \
+    _mtx.lock();                                                          \
+    counter++;                                                            \
+    if (counter > n) {                                                    \
+      reached = true;                                                     \
+    }                                                                     \
+    _mtx.unlock();                                                        \
+    if (!reached) {                                                       \
+      nanolog::LogMsg msg(nanolog::kFATAL, __FILE__, __func__, __LINE__); \
+      msg.fmt(s);                                                         \
+      msg.log(__VA_ARGS__);                                               \
+      msg.emit();                                                         \
+    }                                                                     \
+  } while (0)
+
+//
+// Do not prit log within `msec` milliseconds after the last time of this log
+// was printed.
+//
+
+#define NANOLOG_TRACE_MSEC(msecs, s, ...)                                     \
+  do {                                                                        \
+    bool suppressed{false};                                                   \
+    static int64_t nsuppressed{0};                                            \
+    /* guess this will set last_time to zero */                               \
+    static std::chrono::time_point<std::chrono::system_clock> last_time(      \
+        std::chrono::system_clock::from_time_t({}));                          \
+    static std::mutex _mtx;                                                   \
+    _mtx.lock();                                                              \
+    auto curr = std::chrono::system_clock::now();                             \
+    auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(     \
+                       curr - last_time)                                      \
+                       .count();                                              \
+    if (elapsed < msecs) {                                                    \
+      suppressed = true;                                                      \
+      nsuppressed++;                                                          \
+    } else {                                                                  \
+      last_time = curr;                                                       \
+    }                                                                         \
+    if (!suppressed) {                                                        \
+      std::string suppstr =                                                   \
+          "(Suppressed " + std::to_string(nsuppressed) + " messages)";        \
+      nanolog::LogMsg suppmsg(nanolog::kTRACE, __FILE__, __func__, __LINE__); \
+      suppmsg.fmt(suppstr.c_str());                                           \
+      suppmsg.emit();                                                         \
+      nsuppressed = 0;                                                        \
+      nanolog::LogMsg msg(nanolog::kTRACE, __FILE__, __func__, __LINE__);     \
+      msg.fmt(s);                                                             \
+      msg.log(__VA_ARGS__);                                                   \
+      msg.emit();                                                             \
+    }                                                                         \
+    _mtx.unlock();                                                            \
+  } while (0)
+
+#define NANOLOG_INFO_MSEC(msecs, s, ...)                                     \
+  do {                                                                       \
+    bool suppressed{false};                                                  \
+    static int64_t nsuppressed{0};                                           \
+    /* guess this will set last_time to zero */                              \
+    static std::chrono::time_point<std::chrono::system_clock> last_time(     \
+        std::chrono::system_clock::from_time_t({}));                         \
+    static std::mutex _mtx;                                                  \
+    _mtx.lock();                                                             \
+    auto curr = std::chrono::system_clock::now();                            \
+    auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(    \
+                       curr - last_time)                                     \
+                       .count();                                             \
+    if (elapsed < msecs) {                                                   \
+      suppressed = true;                                                     \
+      nsuppressed++;                                                         \
+    } else {                                                                 \
+      last_time = curr;                                                      \
+    }                                                                        \
+    if (!suppressed) {                                                       \
+      std::string suppstr =                                                  \
+          "(Suppressed " + std::to_string(nsuppressed) + " messages)";       \
+      nanolog::LogMsg suppmsg(nanolog::kINFO, __FILE__, __func__, __LINE__); \
+      suppmsg.fmt(suppstr.c_str());                                          \
+      suppmsg.emit();                                                        \
+      nsuppressed = 0;                                                       \
+      nanolog::LogMsg msg(nanolog::kINFO, __FILE__, __func__, __LINE__);     \
+      msg.fmt(s);                                                            \
+      msg.log(__VA_ARGS__);                                                  \
+      msg.emit();                                                            \
+    }                                                                        \
+    _mtx.unlock();                                                           \
+  } while (0)
+
+#define NANOLOG_WARN_MSEC(msecs, s, ...)                                     \
+  do {                                                                       \
+    bool suppressed{false};                                                  \
+    static int64_t nsuppressed{0};                                           \
+    /* guess this will set last_time to zero */                              \
+    static std::chrono::time_point<std::chrono::system_clock> last_time(     \
+        std::chrono::system_clock::from_time_t({}));                         \
+    static std::mutex _mtx;                                                  \
+    _mtx.lock();                                                             \
+    auto curr = std::chrono::system_clock::now();                            \
+    auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(    \
+                       curr - last_time)                                     \
+                       .count();                                             \
+    if (elapsed < msecs) {                                                   \
+      suppressed = true;                                                     \
+      nsuppressed++;                                                         \
+    } else {                                                                 \
+      last_time = curr;                                                      \
+    }                                                                        \
+    if (!suppressed) {                                                       \
+      std::string suppstr =                                                  \
+          "(Suppressed " + std::to_string(nsuppressed) + " messages)";       \
+      nanolog::LogMsg suppmsg(nanolog::kWARN, __FILE__, __func__, __LINE__); \
+      suppmsg.fmt(suppstr.c_str());                                          \
+      suppmsg.emit();                                                        \
+      nsuppressed = 0;                                                       \
+      nanolog::LogMsg msg(nanolog::kWARN, __FILE__, __func__, __LINE__);     \
+      msg.fmt(s);                                                            \
+      msg.log(__VA_ARGS__);                                                  \
+      msg.emit();                                                            \
+    }                                                                        \
+    _mtx.unlock();                                                           \
+  } while (0)
+
+#define NANOLOG_DEBUG_MSEC(msecs, s, ...)                                     \
+  do {                                                                        \
+    bool suppressed{false};                                                   \
+    static int64_t nsuppressed{0};                                            \
+    /* guess this will set last_time to zero */                               \
+    static std::chrono::time_point<std::chrono::system_clock> last_time(      \
+        std::chrono::system_clock::from_time_t({}));                          \
+    static std::mutex _mtx;                                                   \
+    _mtx.lock();                                                              \
+    auto curr = std::chrono::system_clock::now();                             \
+    auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(     \
+                       curr - last_time)                                      \
+                       .count();                                              \
+    if (elapsed < msecs) {                                                    \
+      suppressed = true;                                                      \
+      nsuppressed++;                                                          \
+    } else {                                                                  \
+      last_time = curr;                                                       \
+    }                                                                         \
+    if (!suppressed) {                                                        \
+      std::string suppstr =                                                   \
+          "(Suppressed " + std::to_string(nsuppressed) + " messages)";        \
+      nanolog::LogMsg suppmsg(nanolog::kDEBUG, __FILE__, __func__, __LINE__); \
+      suppmsg.fmt(suppstr.c_str());                                           \
+      suppmsg.emit();                                                         \
+      nsuppressed = 0;                                                        \
+      nanolog::LogMsg msg(nanolog::kDEBUG, __FILE__, __func__, __LINE__);     \
+      msg.fmt(s);                                                             \
+      msg.log(__VA_ARGS__);                                                   \
+      msg.emit();                                                             \
+    }                                                                         \
+    _mtx.unlock();                                                            \
+  } while (0)
+
+#define NANOLOG_ERROR_MSEC(msecs, s, ...)                                     \
+  do {                                                                        \
+    bool suppressed{false};                                                   \
+    static int64_t nsuppressed{0};                                            \
+    /* guess this will set last_time to zero */                               \
+    static std::chrono::time_point<std::chrono::system_clock> last_time(      \
+        std::chrono::system_clock::from_time_t({}));                          \
+    static std::mutex _mtx;                                                   \
+    _mtx.lock();                                                              \
+    auto curr = std::chrono::system_clock::now();                             \
+    auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(     \
+                       curr - last_time)                                      \
+                       .count();                                              \
+    if (elapsed < msecs) {                                                    \
+      suppressed = true;                                                      \
+      nsuppressed++;                                                          \
+    } else {                                                                  \
+      last_time = curr;                                                       \
+    }                                                                         \
+    if (!suppressed) {                                                        \
+      std::string suppstr =                                                   \
+          "(Suppressed " + std::to_string(nsuppressed) + " messages)";        \
+      nanolog::LogMsg suppmsg(nanolog::kERROR, __FILE__, __func__, __LINE__); \
+      suppmsg.fmt(suppstr.c_str());                                           \
+      suppmsg.emit();                                                         \
+      nsuppressed = 0;                                                        \
+      nanolog::LogMsg msg(nanolog::kERROR, __FILE__, __func__, __LINE__);     \
+      msg.fmt(s);                                                             \
+      msg.log(__VA_ARGS__);                                                   \
+      msg.emit();                                                             \
+    }                                                                         \
+    _mtx.unlock();                                                            \
+  } while (0)
+
+#define NANOLOG_FATAL_MSEC(msecs, s, ...)                                     \
+  do {                                                                        \
+    bool suppressed{false};                                                   \
+    static int64_t nsuppressed{0};                                            \
+    /* guess this will set last_time to zero */                               \
+    static std::chrono::time_point<std::chrono::system_clock> last_time(      \
+        std::chrono::system_clock::from_time_t({}));                          \
+    static std::mutex _mtx;                                                   \
+    _mtx.lock();                                                              \
+    auto curr = std::chrono::system_clock::now();                             \
+    auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(     \
+                       curr - last_time)                                      \
+                       .count();                                              \
+    if (elapsed < msecs) {                                                    \
+      suppressed = true;                                                      \
+      nsuppressed++;                                                          \
+    } else {                                                                  \
+      last_time = curr;                                                       \
+    }                                                                         \
+    if (!suppressed) {                                                        \
+      std::string suppstr =                                                   \
+          "(Suppressed " + std::to_string(nsuppressed) + " messages)";        \
+      nanolog::LogMsg suppmsg(nanolog::kFATAL, __FILE__, __func__, __LINE__); \
+      suppmsg.fmt(suppstr.c_str());                                           \
+      suppmsg.emit();                                                         \
+      nsuppressed = 0;                                                        \
+      nanolog::LogMsg msg(nanolog::kFATAL, __FILE__, __func__, __LINE__);     \
+      msg.fmt(s);                                                             \
+      msg.log(__VA_ARGS__);                                                   \
+      msg.emit();                                                             \
+    }                                                                         \
+    _mtx.unlock();                                                            \
   } while (0)
 
 #endif
-
 
 }  // namespace nanolog
 
