@@ -24,9 +24,9 @@ int format_float(char* buf, std::size_t size, const char* format, int precision,
                        : snprintf_ptr(buf, size, format, precision, value);
 }
 
-template dragonbox::decimal_fp<float> dragonbox::to_decimal(float x)
+template FMT_API dragonbox::decimal_fp<float> dragonbox::to_decimal(float x)
     FMT_NOEXCEPT;
-template dragonbox::decimal_fp<double> dragonbox::to_decimal(double x)
+template FMT_API dragonbox::decimal_fp<double> dragonbox::to_decimal(double x)
     FMT_NOEXCEPT;
 
 // DEPRECATED! This function exists for ABI compatibility.
@@ -54,8 +54,6 @@ vformat_to(buffer<char>&, string_view,
                std::back_insert_iterator<buffer<type_identity_t<char>>>,
                type_identity_t<char>>>);
 }  // namespace detail
-
-template struct FMT_INSTANTIATION_DEF_API detail::basic_data<void>;
 
 // Workaround a bug in MSVC2013 that prevents instantiation of format_float.
 int (*instantiate_format_float)(double, int, detail::float_specs,
