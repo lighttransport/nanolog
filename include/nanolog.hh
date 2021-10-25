@@ -25,6 +25,9 @@ SOFTWARE.
 #define NANOLOG_HH_
 
 #include <string>
+#include <atomic>
+#include <chrono>
+#include <mutex>
 
 #ifdef __clang__
 #pragma clang diagnostic push
@@ -46,9 +49,6 @@ SOFTWARE.
 
 #else
 // internal
-#include <atomic>
-#include <chrono>
-#include <mutex>
 #include <sstream>
 #include <thread>
 #include <vector>
@@ -286,6 +286,285 @@ void logger(int level, const char *filename, const char *funcname, int line,
     nanolog::logger(nanolog::kFATAL, __FILE__, __func__, __LINE__, \
                     __VA_ARGS__);                                  \
   } while (0)
+
+//
+// Print log up to `n` times.
+//
+
+#define NANOLOG_TRACE_N(n, ...)                                        \
+  do {                                                                    \
+    bool reached{false};                                                  \
+    static int64_t counter = 0;                                           \
+    static std::mutex _mtx;                                               \
+    _mtx.lock();                                                          \
+    counter++;                                                            \
+    if (counter > n) {                                                    \
+      reached = true;                                                     \
+    }                                                                     \
+    _mtx.unlock();                                                        \
+    if (!reached) {                                                       \
+      nanolog::logger(nanolog::kTRACE, __FILE__, __func__, __LINE__, __VA_ARGS__); \
+    }                                                                     \
+  } while (0)
+
+#define NANOLOG_INFO_N(n, ...)                                        \
+  do {                                                                   \
+    bool reached{false};                                                 \
+    static int64_t counter = 0;                                          \
+    static std::mutex _mtx;                                              \
+    _mtx.lock();                                                         \
+    counter++;                                                           \
+    if (counter > n) {                                                   \
+      reached = true;                                                    \
+    }                                                                    \
+    _mtx.unlock();                                                       \
+    if (!reached) {                                                      \
+      nanolog::logger(nanolog::kINFO, __FILE__, __func__, __LINE__, __VA_ARGS__); \
+    }                                                                    \
+  } while (0)
+
+#define NANOLOG_DEBUG_N(n, ...)                                        \
+  do {                                                                    \
+    bool reached{false};                                                  \
+    static int64_t counter = 0;                                           \
+    static std::mutex _mtx;                                               \
+    _mtx.lock();                                                          \
+    counter++;                                                            \
+    if (counter > n) {                                                    \
+      reached = true;                                                     \
+    }                                                                     \
+    _mtx.unlock();                                                        \
+    if (!reached) {                                                       \
+      nanolog::logger(nanolog::kDEBUG, __FILE__, __func__, __LINE__, __VA_ARGS__); \
+  } while (0)
+
+#define NANOLOG_WARN_N(n, ...)                                        \
+  do {                                                                   \
+    bool reached{false};                                                 \
+    static int64_t counter = 0;                                          \
+    static std::mutex _mtx;                                              \
+    _mtx.lock();                                                         \
+    counter++;                                                           \
+    if (counter > n) {                                                   \
+      reached = true;                                                    \
+    }                                                                    \
+    _mtx.unlock();                                                       \
+    if (!reached) {                                                      \
+      nanolog::logger(nanolog::kWARN, __FILE__, __func__, __LINE__, __VA_ARGS__); \
+    }                                                                    \
+  } while (0)
+
+#define NANOLOG_ERROR_N(n, ...)                                        \
+  do {                                                                    \
+    bool reached{false};                                                  \
+    static int64_t counter = 0;                                           \
+    static std::mutex _mtx;                                               \
+    _mtx.lock();                                                          \
+    counter++;                                                            \
+    if (counter > n) {                                                    \
+      reached = true;                                                     \
+    }                                                                     \
+    _mtx.unlock();                                                        \
+    if (!reached) {                                                       \
+      nanolog::logger(nanolog::kERROR, __FILE__, __func__, __LINE__, __VA_ARGS__); \
+    }                                                                     \
+  } while (0)
+
+#define NANOLOG_FATAL_N(n, ...)                                        \
+  do {                                                                    \
+    bool reached{false};                                                  \
+    static int64_t counter = 0;                                           \
+    static std::mutex _mtx;                                               \
+    _mtx.lock();                                                          \
+    counter++;                                                            \
+    if (counter > n) {                                                    \
+      reached = true;                                                     \
+    }                                                                     \
+    _mtx.unlock();                                                        \
+    if (!reached) {                                                       \
+      nanolog::logger(nanolog::kFATAL, __FILE__, __func__, __LINE__, __VA_ARGS__); \
+    }                                                                     \
+  } while (0)
+
+//
+// Do not prit log within `msec` milliseconds after the last time of this log
+// was printed.
+//
+
+#define NANOLOG_TRACE_MSEC(msecs, ...)                                     \
+  do {                                                                        \
+    bool suppressed{false};                                                   \
+    static int64_t nsuppressed{0};                                            \
+    /* guess this will set last_time to zero */                               \
+    static std::chrono::time_point<std::chrono::system_clock> last_time(      \
+        std::chrono::system_clock::from_time_t({}));                          \
+    static std::mutex _mtx;                                                   \
+    _mtx.lock();                                                              \
+    auto curr = std::chrono::system_clock::now();                             \
+    auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(     \
+                       curr - last_time)                                      \
+                       .count();                                              \
+    if (elapsed < msecs) {                                                    \
+      suppressed = true;                                                      \
+      nsuppressed++;                                                          \
+    } else {                                                                  \
+      last_time = curr;                                                       \
+    }                                                                         \
+    if (!suppressed) {                                                        \
+      std::string suppstr =                                                   \
+          "(Suppressed " + std::to_string(nsuppressed) + " messages)";        \
+      nanolog::loger(nanolog::kTRACE, __FILE__, __func__, __LINE__, suppstr.c_str()); \
+      nsuppressed = 0;                                                        \
+      nanolog::logger(nanolog::kTRACE, __FILE__, __func__, __LINE__, __VA_ARGS__);     \
+    }                                                                         \
+    _mtx.unlock();                                                            \
+  } while (0)
+
+#define NANOLOG_INFO_MSEC(msecs, ...)                                     \
+  do {                                                                       \
+    bool suppressed{false};                                                  \
+    static int64_t nsuppressed{0};                                           \
+    /* guess this will set last_time to zero */                              \
+    static std::chrono::time_point<std::chrono::system_clock> last_time(     \
+        std::chrono::system_clock::from_time_t({}));                         \
+    static std::mutex _mtx;                                                  \
+    _mtx.lock();                                                             \
+    auto curr = std::chrono::system_clock::now();                            \
+    auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(    \
+                       curr - last_time)                                     \
+                       .count();                                             \
+    if (elapsed < msecs) {                                                   \
+      suppressed = true;                                                     \
+      nsuppressed++;                                                         \
+    } else {                                                                 \
+      last_time = curr;                                                      \
+    }                                                                        \
+    if (!suppressed) {                                                       \
+      std::string suppstr =                                                  \
+          "(Suppressed " + std::to_string(nsuppressed) + " messages)";       \
+      nanolog::logger(nanolog::kINFO, __FILE__, __func__, __LINE__, suppstr.c_str()); \
+      nsuppressed = 0;                                                       \
+      nanolog::logger(nanolog::kINFO, __FILE__, __func__, __LINE__, __VA_ARGS__);     \
+    }                                                                        \
+    _mtx.unlock();                                                           \
+  } while (0)
+
+#define NANOLOG_WARN_MSEC(msecs, ...)                                     \
+  do {                                                                       \
+    bool suppressed{false};                                                  \
+    static int64_t nsuppressed{0};                                           \
+    /* guess this will set last_time to zero */                              \
+    static std::chrono::time_point<std::chrono::system_clock> last_time(     \
+        std::chrono::system_clock::from_time_t({}));                         \
+    static std::mutex _mtx;                                                  \
+    _mtx.lock();                                                             \
+    auto curr = std::chrono::system_clock::now();                            \
+    auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(    \
+                       curr - last_time)                                     \
+                       .count();                                             \
+    if (elapsed < msecs) {                                                   \
+      suppressed = true;                                                     \
+      nsuppressed++;                                                         \
+    } else {                                                                 \
+      last_time = curr;                                                      \
+    }                                                                        \
+    if (!suppressed) {                                                       \
+      std::string suppstr =                                                  \
+          "(Suppressed " + std::to_string(nsuppressed) + " messages)";       \
+      nanolog::logger(nanolog::kWARN, __FILE__, __func__, __LINE__, suppstr.c_str()); \
+      nsuppressed = 0;                                                       \
+      nanolog::logger(nanolog::kWARN, __FILE__, __func__, __LINE__, __VA_ARGS__);     \
+    }                                                                        \
+    _mtx.unlock();                                                           \
+  } while (0)
+
+#define NANOLOG_DEBUG_MSEC(msecs, ...)                                     \
+  do {                                                                        \
+    bool suppressed{false};                                                   \
+    static int64_t nsuppressed{0};                                            \
+    /* guess this will set last_time to zero */                               \
+    static std::chrono::time_point<std::chrono::system_clock> last_time(      \
+        std::chrono::system_clock::from_time_t({}));                          \
+    static std::mutex _mtx;                                                   \
+    _mtx.lock();                                                              \
+    auto curr = std::chrono::system_clock::now();                             \
+    auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(     \
+                       curr - last_time)                                      \
+                       .count();                                              \
+    if (elapsed < msecs) {                                                    \
+      suppressed = true;                                                      \
+      nsuppressed++;                                                          \
+    } else {                                                                  \
+      last_time = curr;                                                       \
+    }                                                                         \
+    if (!suppressed) {                                                        \
+      std::string suppstr =                                                   \
+          "(Suppressed " + std::to_string(nsuppressed) + " messages)";        \
+      nanolog::logger(nanolog::kDEBUG, __FILE__, __func__, __LINE__, suppstr.c_str()); \
+      nsuppressed = 0;                                                        \
+      nanolog::logger(nanolog::kDEBUG, __FILE__, __func__, __LINE__, __VA_ARGS__);     \
+    }                                                                         \
+    _mtx.unlock();                                                            \
+  } while (0)
+
+#define NANOLOG_ERROR_MSEC(msecs, ...)                                     \
+  do {                                                                        \
+    bool suppressed{false};                                                   \
+    static int64_t nsuppressed{0};                                            \
+    /* guess this will set last_time to zero */                               \
+    static std::chrono::time_point<std::chrono::system_clock> last_time(      \
+        std::chrono::system_clock::from_time_t({}));                          \
+    static std::mutex _mtx;                                                   \
+    _mtx.lock();                                                              \
+    auto curr = std::chrono::system_clock::now();                             \
+    auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(     \
+                       curr - last_time)                                      \
+                       .count();                                              \
+    if (elapsed < msecs) {                                                    \
+      suppressed = true;                                                      \
+      nsuppressed++;                                                          \
+    } else {                                                                  \
+      last_time = curr;                                                       \
+    }                                                                         \
+    if (!suppressed) {                                                        \
+      std::string suppstr =                                                   \
+          "(Suppressed " + std::to_string(nsuppressed) + " messages)";        \
+      nanolog::logger(nanolog::kERROR, __FILE__, __func__, __LINE__, suppstr.c_str()); \
+      nsuppressed = 0;                                                        \
+      nanolog::logger(nanolog::kERROR, __FILE__, __func__, __LINE__, __VA_ARGS__);     \
+    }                                                                         \
+    _mtx.unlock();                                                            \
+  } while (0)
+
+#define NANOLOG_FATAL_MSEC(msecs, ...)                                     \
+  do {                                                                        \
+    bool suppressed{false};                                                   \
+    static int64_t nsuppressed{0};                                            \
+    /* guess this will set last_time to zero */                               \
+    static std::chrono::time_point<std::chrono::system_clock> last_time(      \
+        std::chrono::system_clock::from_time_t({}));                          \
+    static std::mutex _mtx;                                                   \
+    _mtx.lock();                                                              \
+    auto curr = std::chrono::system_clock::now();                             \
+    auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(     \
+                       curr - last_time)                                      \
+                       .count();                                              \
+    if (elapsed < msecs) {                                                    \
+      suppressed = true;                                                      \
+      nsuppressed++;                                                          \
+    } else {                                                                  \
+      last_time = curr;                                                       \
+    }                                                                         \
+    if (!suppressed) {                                                        \
+      std::string suppstr =                                                   \
+          "(Suppressed " + std::to_string(nsuppressed) + " messages)";        \
+      nanolog::logger(nanolog::kFATAL, __FILE__, __func__, __LINE__, suppstr.c_str()); \
+      nsuppressed = 0;                                                        \
+      nanolog::logger(nanolog::kFATAL, __FILE__, __func__, __LINE__, __VA_ARGS__);     \
+    }                                                                         \
+    _mtx.unlock();                                                            \
+  } while (0)
+
 
 #else
 

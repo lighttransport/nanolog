@@ -32,8 +32,8 @@ static void logger1()
 
   for (int i = 0; i < n; i++) {
     NANOLOG_TRACE_N(10, "This log will be printed up to 10 times. i = {}", i);
-    NANOLOG_INFO("thread1 i = {}", i);
-#if !defined(NANOLOG_USE_FMTLIB) && !defined(NANOLOG_USE_PPRINTPP)
+    //NANOLOG_INFO("thread1 i = {}", i);
+#if !defined(NANOLOG_USE_PPRINTPP)
     // print log each 1000 msecs(1 second)
     NANOLOG_ERROR_MSEC(1000, "thread1 i = {}", i);
 #endif
@@ -46,7 +46,7 @@ static void logger2()
   int n = 120;
 
   for (int i = 0; i < n; i++) {
-#if !defined(NANOLOG_USE_FMTLIB) && !defined(NANOLOG_USE_PPRINTPP)
+#if !defined(NANOLOG_USE_PPRINTPP)
     // print log each 2000 msecs(2 second)
     NANOLOG_INFO_MSEC(2000, "thread2 i = {}", i);
 #else
