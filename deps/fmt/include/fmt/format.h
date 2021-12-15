@@ -42,7 +42,7 @@
 #include <utility>       // std::swap
 
 #ifdef __cpp_lib_bit_cast
-#include <bit>           // std::bitcast
+#  include <bit>  // std::bitcast
 #endif
 
 #include "core.h"
@@ -265,6 +265,38 @@ FMT_END_NAMESPACE
 
 FMT_BEGIN_NAMESPACE
 namespace detail {
+
+template <typename Streambuf> class formatbuf : public Streambuf {
+ private:
+  using char_type = typename Streambuf::char_type;
+  using streamsize = decltype(std::declval<Streambuf>().sputn(nullptr, 0));
+  using int_type = typename Streambuf::int_type;
+  using traits_type = typename Streambuf::traits_type;
+
+  buffer<char_type>& buffer_;
+
+ public:
+  explicit formatbuf(buffer<char_type>& buf) : buffer_(buf) {}
+
+ protected:
+  // The put area is always empty. This makes the implementation simpler and has
+  // the advantage that the streambuf and the buffer are always in sync and
+  // sputc never writes into uninitialized memory. A disadvantage is that each
+  // call to sputc always results in a (virtual) call to overflow. There is no
+  // disadvantage here for sputn since this always results in a call to xsputn.
+
+  auto overflow(int_type ch) -> int_type override {
+    if (!traits_type::eq_int_type(ch, traits_type::eof()))
+      buffer_.push_back(static_cast<char_type>(ch));
+    return ch;
+  }
+
+  auto xsputn(const char_type* s, streamsize count) -> streamsize override {
+    buffer_.append(s, s + count);
+    return count;
+  }
+};
+
 // An equivalent of `*reinterpret_cast<Dest*>(&source)` that doesn't have
 // undefined behavior (e.g. due to type aliasing).
 // Example: uint64_t d = bit_cast<uint64_t>(2.718);
@@ -667,7 +699,7 @@ class basic_memory_buffer final : public detail::buffer<T> {
   }
 
  protected:
-  void grow(size_t size) override;
+  FMT_CONSTEXPR20 void grow(size_t size) override;
 
  public:
   using value_type = T;
@@ -753,7 +785,7 @@ class basic_memory_buffer final : public detail::buffer<T> {
 };
 
 template <typename T, size_t SIZE, typename Allocator>
-void basic_memory_buffer<T, SIZE, Allocator>::grow(size_t size) {
+FMT_CONSTEXPR20 void basic_memory_buffer<T, SIZE, Allocator>::grow(size_t size) {
 #ifdef FMT_FUZZ
   if (size > 5000) throw std::runtime_error("fuzz mode - won't grow that much");
 #endif
@@ -905,7 +937,7 @@ constexpr const char* digits2(size_t value) {
 
 // Sign is a template parameter to workaround a bug in gcc 4.8.
 template <typename Char, typename Sign> constexpr Char sign(Sign s) {
-#if !FMT_GCC_VERSION || FMT_GCC_VERSION > 408
+#if !FMT_GCC_VERSION || FMT_GCC_VERSION >= 604
   static_assert(std::is_same<Sign, sign_t>::value, "");
 #endif
   return static_cast<Char>("\0-+ "[s]);
@@ -970,11 +1002,14 @@ FMT_CONSTEXPR auto count_digits(UInt n) -> int {
   if (num_bits<UInt>() == 32)
     return (FMT_BUILTIN_CLZ(static_cast<uint32_t>(n) | 1) ^ 31) / BITS + 1;
 #endif
-  int num_digits = 0;
-  do {
-    ++num_digits;
-  } while ((n >>= BITS) != 0);
-  return num_digits;
+  // Lambda avoids unreachable code warnings from NVHPC.
+  return [](UInt m) {
+    int num_digits = 0;
+    do {
+      ++num_digits;
+    } while ((m >>= BITS) != 0);
+    return num_digits;
+  }(n);
 }
 
 template <> auto count_digits<4>(detail::fallback_uintptr n) -> int;
@@ -1720,7 +1755,7 @@ inline auto write_significand(Char* out, UInt significand, int significand_size,
   out += significand_size + 1;
   Char* end = out;
   int floating_size = significand_size - integral_size;
-  for(int i = floating_size / 2; i > 0; --i) {
+  for (int i = floating_size / 2; i > 0; --i) {
     out -= 2;
     copy2(out, digits2(significand % 100));
     significand /= 100;
@@ -2082,7 +2117,7 @@ FMT_CONSTEXPR auto write(OutputIt out, T value) -> OutputIt {
   return base_iterator(out, it);
 }
 
-// FMT_ENABLE_IF() condition separated to workaround MSVC bug
+// FMT_ENABLE_IF() condition separated to workaround an MSVC bug.
 template <
     typename Char, typename OutputIt, typename T,
     bool check =
@@ -2133,18 +2168,28 @@ auto write(OutputIt out, const T* value,
   return write_ptr<Char>(out, to_uintptr(value), &specs);
 }
 
-template <typename Char, typename OutputIt, typename T>
-FMT_CONSTEXPR auto write(OutputIt out, const T& value) ->
-    typename std::enable_if<
-        mapped_type_constant<T, basic_format_context<OutputIt, Char>>::value ==
-            type::custom_type,
-        OutputIt>::type {
-  using context_type = basic_format_context<OutputIt, Char>;
+// A write overload that handles implicit conversions.
+template <typename Char, typename OutputIt, typename T,
+          typename Context = basic_format_context<OutputIt, Char>>
+FMT_CONSTEXPR auto write(OutputIt out, const T& value) -> enable_if_t<
+    std::is_class<T>::value && !is_string<T>::value &&
+        !std::is_same<T, Char>::value &&
+        !std::is_same<const T&,
+                      decltype(arg_mapper<Context>().map(value))>::value,
+    OutputIt> {
+  return write<Char>(out, arg_mapper<Context>().map(value));
+}
+
+template <typename Char, typename OutputIt, typename T,
+          typename Context = basic_format_context<OutputIt, Char>>
+FMT_CONSTEXPR auto write(OutputIt out, const T& value)
+    -> enable_if_t<mapped_type_constant<T, Context>::value == type::custom_type,
+                   OutputIt> {
   using formatter_type =
-      conditional_t<has_formatter<T, context_type>::value,
-                    typename context_type::template formatter_type<T>,
+      conditional_t<has_formatter<T, Context>::value,
+                    typename Context::template formatter_type<T>,
                     fallback_formatter<T, Char>>;
-  context_type ctx(out, {}, {});
+  auto ctx = Context(out, {}, {});
   return formatter_type().format(value, ctx);
 }
 
@@ -2561,6 +2606,7 @@ FMT_FORMAT_AS(unsigned long, unsigned long long);
 FMT_FORMAT_AS(Char*, const Char*);
 FMT_FORMAT_AS(std::basic_string<Char>, basic_string_view<Char>);
 FMT_FORMAT_AS(std::nullptr_t, const void*);
+FMT_FORMAT_AS(detail::byte, unsigned char);
 FMT_FORMAT_AS(detail::std_string_view<Char>, basic_string_view<Char>);
 
 template <typename Char>
@@ -2850,7 +2896,7 @@ inline auto to_string(const T& value) -> std::string {
 }
 
 template <typename T, FMT_ENABLE_IF(std::is_integral<T>::value)>
-inline auto to_string(T value) -> std::string {
+FMT_NODISCARD inline auto to_string(T value) -> std::string {
   // The buffer should be large enough to store the number including the sign
   // or "false" for bool.
   constexpr int max_size = detail::digits10<T>() + 2;
@@ -2860,7 +2906,7 @@ inline auto to_string(T value) -> std::string {
 }
 
 template <typename Char, size_t SIZE>
-auto to_string(const basic_memory_buffer<Char, SIZE>& buf)
+FMT_NODISCARD auto to_string(const basic_memory_buffer<Char, SIZE>& buf)
     -> std::basic_string<Char> {
   auto size = buf.size();
   detail::assume(size < std::basic_string<Char>().max_size());
@@ -3003,14 +3049,12 @@ constexpr auto operator"" _a(const char* s, size_t) -> detail::udl_arg<char> {
 #  endif
 
 /**
-  \rst
-  User-defined literal equivalent of :func:`fmt::format`.
+  DEPRECATED! User-defined literal equivalent of fmt::format.
 
   **Example**::
 
     using namespace fmt::literals;
     std::string message = "The answer is {}"_format(42);
-  \endrst
  */
 constexpr auto operator"" _format(const char* s, size_t n)
     -> detail::udl_formatter<char> {

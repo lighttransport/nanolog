@@ -704,7 +704,12 @@ FMT_INLINE FMT_CONSTEXPR20 digits::result grisu_gen_digits(
   if (handler.fixed) {
     // Adjust fixed precision by exponent because it is relative to decimal
     // point.
-    handler.precision += exp + handler.exp10;
+    int precision_offset = exp + handler.exp10;
+    if (precision_offset > 0 &&
+        handler.precision > max_value<int>() - precision_offset) {
+      throw format_error("number is too big");
+    }
+    handler.precision += precision_offset;
     // Check if precision is satisfied just by leading zeros, e.g.
     // format("{:.2f}", 0.001) gives "0.00" without generating any digits.
     if (handler.precision <= 0) {
@@ -2375,10 +2380,6 @@ FMT_HEADER_ONLY_CONSTEXPR20 int format_float(Float value, int precision,
     const auto cached_pow = get_cached_power(
         min_exp - (normalized.e + fp::num_significand_bits), cached_exp10);
     normalized = normalized * cached_pow;
-    // Limit precision to the maximum possible number of significant digits in
-    // an IEEE754 double because we don't need to generate zeros.
-    const int max_double_digits = 767;
-    if (precision > max_double_digits) precision = max_double_digits;
     gen_digits_handler handler{buf.data(), 0, precision, -cached_exp10, fixed};
     if (grisu_gen_digits(normalized, 1, exp, handler) != digits::error &&
         !is_constant_evaluated()) {
@@ -2394,6 +2395,10 @@ FMT_HEADER_ONLY_CONSTEXPR20 int format_float(Float value, int precision,
     auto f = fp();
     bool is_predecessor_closer =
         specs.binary32 ? f.assign(static_cast<float>(value)) : f.assign(value);
+    // Limit precision to the maximum possible number of significant digits in
+    // an IEEE754 double because we don't need to generate zeros.
+    const int max_double_digits = 767;
+    if (precision > max_double_digits) precision = max_double_digits;
     format_dragon(f, is_predecessor_closer, precision, buf, exp);
   }
   if (!fixed && !specs.showpoint) {
